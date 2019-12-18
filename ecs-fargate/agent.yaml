@@ -1,0 +1,66 @@
+# This agent config file is designed for use within an ECS task.  The agent
+# should be as a Fargate service within an ECS task.
+signalFxAccessToken: {"#from": "env:ACCESS_TOKEN"}
+signalFxRealm: us0
+intervalSeconds: {"#from": "env:INTERVAL_SECONDS", default: 10}
+
+# Define SFX_HOSTNAME in the task definition to avoid the default generic AWS
+# hostname.
+hostname: {"#from": "env:SFX_HOSTNAME"}
+# This is helpful for Fargate so we can query internal metrics and metadata
+# from outside the container using http://<ip>:8095/?section=<keyword>.
+internalStatusHost: "0.0.0.0"
+
+logging:
+  level: {"#from": "env:LOG_LEVEL", default: "info"}
+
+# observers are what discover running services in the environment
+observers:
+    # Enable the ecs observer to discover other ECS containers running on the
+    # same ECS task.
+  - type: ecs
+    labelsToDimensions: &labelMap
+      com.amazonaws.ecs.container-name: container_spec_name
+
+monitors:
+  - type: collectd/cpu
+  - type: collectd/disk
+  - type: collectd/interface
+  - type: collectd/load
+  - type: collectd/memory
+  - type: collectd/protocols
+  - type: collectd/signalfx-metadata
+  - type: collectd/vmem
+
+  - type: ecs-metadata
+    excludedImages:
+      - signalfx-agent
+    labelsToDimensions:
+      <<: *labelMap
+
+  - type: collectd/mongodb
+    discoveryRule: container_image =~ "mongo" || container_image =~ "user-db"
+    databases:
+    - data
+    - users
+  - type: collectd/redis
+    discoveryRule: container_image =~ "redis"
+  - type: collectd/rabbitmq
+    discoveryRule: container_image =~ "rabbitmq"
+    username: guest
+    password: guest
+
+    # You can set this envvar in your task definition to provide extra monitor
+    # configuration to monitor applications running as ECS tasks.  You should
+    # probably use discovery rules so that you don't have to have a specific
+    # config for each EC2 instance.
+  - {"#from": "env:EXTRA_MONITOR_CONFIG", default: [], flatten: true}
+
+enableBuiltInFiltering: true
+
+metricsToExclude:
+  - {"#from": "env:METRICS_TO_EXCLUDE", default: [], flatten: true}
+
+# This allows any config above to be completely overridden.  CONFIG_OVERRIDE
+# must be given as a YAML/JSON object.
+_: {"#from": "env:CONFIG_OVERRIDE", optional: true, flatten: true}
