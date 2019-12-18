@@ -6,6 +6,7 @@ You will incur a small cost to run the app; should be about $1/hour (in us-east-
 Currently, the application is instrumented with Smart Agent only, not uAPM.  I plan to do uAPM after EKS.  If others would like to work on the uAPM piece, that's fine; otherwise, I will get to it when I get to it.  I'd also like to work on a Terraform configuration in place of CloudFormation.  And I'd like to build this for Azure and GCP also.  I'll be busy!
 
 
+
 INSTALLATION (FOR ECS-FARGATE)
 
 See the how-to videos at https://signalfuse.atlassian.net/wiki/spaces/SE/pages/907936295/Sock+Shop+Fargate+Lab.
