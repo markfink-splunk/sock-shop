@@ -39,14 +39,14 @@ monitors:
       <<: *labelMap
 
   - type: collectd/mongodb
-    discoveryRule: container_image =~ "mongo" || container_image =~ "user-db"
+    discoveryRule: (container_image =~ "mongo" || container_image =~ "user-db") && port == 27017
     databases:
     - data
     - users
   - type: collectd/redis
-    discoveryRule: container_image =~ "redis"
+    discoveryRule: container_image =~ "redis" && port == 6379
   - type: collectd/rabbitmq
-    discoveryRule: container_image =~ "rabbitmq"
+    discoveryRule: container_image =~ "rabbitmq" && port == 15672
     username: guest
     password: guest
 
