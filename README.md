@@ -84,7 +84,7 @@ Other options:
 - Spin-up the task with an EC2 launch type.  This gives you CLI access to Docker then.  But you have to spin-up an EC2, join it to the cluster, temporarily reconfigure the task and service, etc.   Grrr..
 - Spin-up the Docker image on your laptop (using Docker).  This is not helpful though if you need to see what is happening specifically with Fargate.  For instance, I wanted to see what environment variables Fargate sets, which we won't see this way.
 - Use the 'Command' or 'EntryPoint' options in the task definition to override those options in the image and view the results in the CloudWatch log group.  For instance, if the original entrypoint in the Dockerfile is "java file.jar", you could modify the task definition to override that and instead run, for example, "printenv && java file.jar".  This outputs the environment variables then runs the java command after.  And this can be done without rebuilding the image so it is relatively easy.
-		○ On second thought, this is easy in a lab environment.  It's not easy in prod because updating the task definition with a new Command and running it implies tearing down the old task and spinning up a new one, which implies impacting the service.
+- On second thought, this is easy in a lab environment.  It's not easy in prod because updating the task definition with a new Command and running it implies tearing down the old task and spinning up a new one, which implies impacting the service.
 
 One helpful tip I picked up for checking on the Smart Agent without a shell is to add this line to agent.yaml (which you will see in this project's agent.yaml file):
 
