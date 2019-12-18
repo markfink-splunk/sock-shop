@@ -12,9 +12,9 @@ INSTALLATION (FOR ECS-FARGATE)
 See the how-to videos at https://signalfuse.atlassian.net/wiki/spaces/SE/pages/907936295/Sock+Shop+Fargate+Lab.
 
 Requirements:
-	- You must have an AWS account of course! 
-	- A Key Pair configured in the EC2 console (easy to do).
-	- A SecureString parameter configured in the Systems Manager Parameter Store called 'sfx_access_token' that contains the SignalFx access token you wish to use.
+- You must have an AWS account of course! 
+- A Key Pair configured in the EC2 console (easy to do).
+- A SecureString parameter configured in the Systems Manager Parameter Store called 'sfx_access_token' that contains the SignalFx access token you wish to use.
 
 The stack should work in the following regions (it will definitely fail in any other region):
 us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1, eu-central-1, ap-northeast-1, ap-southeast-1, ap-southeast-2
@@ -64,8 +64,8 @@ Every Fargate task (with the Smart Agent sidecar) will count as a host to Signal
 This leads to the question of setting the hostname used for Fargate tasks so that you can identify them easily in our UI.
 
 Options that I explored:
-	- CloudFormation offers a "Hostname" key under ContainerDefinitions (in the task definition).  This seemed like a simple no-brainer until I tried it and found that it is not supported with the awsvpc network mode used with Fargate.  Iow, it only works for EC2 launch types that do not use awsvpc.
-	- ECS provides a container metadata endpoint much like the EC2 metadata endpoint that can be queried with curl .  That metadata contains the task family name which would be perfect as the hostname for our purposes.  The challenge is that the family name is returned as part of a larger JSON blob, so we must then parse it out of the response.  Our Smart Agent Docker image does not provide utilities (like jq) for that.  So we'd have to go through the extra effort of installing those tools and then we get into rebuilding the Docker image, etc.  So this rightly becomes a feedback/enhancement request and not something we should hack (even though we could for a given customer).
+- CloudFormation offers a "Hostname" key under ContainerDefinitions (in the task definition).  This seemed like a simple no-brainer until I tried it and found that it is not supported with the awsvpc network mode used with Fargate.  Iow, it only works for EC2 launch types that do not use awsvpc.
+- ECS provides a container metadata endpoint much like the EC2 metadata endpoint that can be queried with curl .  That metadata contains the task family name which would be perfect as the hostname for our purposes.  The challenge is that the family name is returned as part of a larger JSON blob, so we must then parse it out of the response.  Our Smart Agent Docker image does not provide utilities (like jq) for that.  So we'd have to go through the extra effort of installing those tools and then we get into rebuilding the Docker image, etc.  So this rightly becomes a feedback/enhancement request and not something we should hack (even though we could for a given customer).
 
 For the above reasons, the simplest solution for now and for a POC is to set an environment variable in the Fargate task definition for the hostname we'd like to use and reference that environment variable in agent.yaml.  This requires setting the environment variable for each task definition.  And I chose to use variable SFX_HOSTNAME for this purpose.  You will see this variable in each task definition (in the CloudFormation stack) and in the agent.yaml file.
 
@@ -81,9 +81,9 @@ SHELL ACCESS
 With K8s and Docker, you can shell into containers to troubleshoot issues and look at the environment.  You can't do that with Fargate!  It is possible only by adding sshd into the container, enabling it for root, configuring a key pair, and opening network access to SSH, all of which is a horrible idea for security and neither quick nor easy to do anyway.  Iow, you temporarily drop-in a special Docker image with root-enabled sshd baked in, then switch back when you're done.  Yuck.
 
 Other options:
-	- Spin-up the task with an EC2 launch type.  This gives you CLI access to Docker then.  But you have to spin-up an EC2, join it to the cluster, temporarily reconfigure the task and service, etc.   Grrr..
-	- Spin-up the Docker image on your laptop (using Docker).  This is not helpful though if you need to see what is happening specifically with Fargate.  For instance, I wanted to see what environment variables Fargate sets, which we won't see this way.
-	- Use the 'Command' or 'EntryPoint' options in the task definition to override those options in the image and view the results in the CloudWatch log group.  For instance, if the original entrypoint in the Dockerfile is "java file.jar", you could modify the task definition to override that and instead run, for example, "printenv && java file.jar".  This outputs the environment variables then runs the java command after.  And this can be done without rebuilding the image so it is relatively easy.
+- Spin-up the task with an EC2 launch type.  This gives you CLI access to Docker then.  But you have to spin-up an EC2, join it to the cluster, temporarily reconfigure the task and service, etc.   Grrr..
+- Spin-up the Docker image on your laptop (using Docker).  This is not helpful though if you need to see what is happening specifically with Fargate.  For instance, I wanted to see what environment variables Fargate sets, which we won't see this way.
+- Use the 'Command' or 'EntryPoint' options in the task definition to override those options in the image and view the results in the CloudWatch log group.  For instance, if the original entrypoint in the Dockerfile is "java file.jar", you could modify the task definition to override that and instead run, for example, "printenv && java file.jar".  This outputs the environment variables then runs the java command after.  And this can be done without rebuilding the image so it is relatively easy.
 		○ On second thought, this is easy in a lab environment.  It's not easy in prod because updating the task definition with a new Command and running it implies tearing down the old task and spinning up a new one, which implies impacting the service.
 
 One helpful tip I picked up for checking on the Smart Agent without a shell is to add this line to agent.yaml (which you will see in this project's agent.yaml file):
@@ -91,7 +91,9 @@ One helpful tip I picked up for checking on the Smart Agent without a shell is t
 internalStatusHost: ”0.0.0.0"
 
 This allows us to hit the internal metrics URL from outside the container (on the EC2!) with:
-curl http://<ip_address>:8095/?section=<keyword>
+
+curl http://<ip_address>:8095/?section=\<keyword\>
+
 You can get the IP address out of the CloudWatch log.
 
 
