@@ -39,7 +39,7 @@ monitors:
       <<: *labelMap
 
   - type: collectd/mongodb
-    discoveryRule: (container_image =~ "mongo" || container_image =~ "user-db") && port == 27017
+    discoveryRule: (container_image =~ "mongo" || container_image =~ ".*user-db") && port == 27017
     databases:
     - data
     - users
