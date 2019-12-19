@@ -5,7 +5,7 @@ You will incur a small cost to run the app; should be about $1/hour (in us-east-
 
 Currently, the application is instrumented with Smart Agent only, not uAPM.  I plan to do uAPM after EKS.  If others would like to work on the uAPM piece, that's fine; otherwise, I will get to it when I get to it.  I'd also like to work on a Terraform configuration in place of CloudFormation.  And I'd like to build this for Azure and GCP also.  I'll be busy!
 
-
+<br/>
 
 **INSTALLATION (FOR ECS-FARGATE)**
 
@@ -32,11 +32,15 @@ When it completes, click the Outputs tab at the top.  You will see the Applicati
 
 If you are studying for your AWS cert, you would do well to study the CloudFormation stack.  It creates and integrates many AWS resources like a VPC, subnets, IAM roles, Route 53, Internet Gateway, Security Groups, DynamoDB and RDS databases, EC2, ALB, Target Groups, CloudWatch logging, and a slew of Fargate tasks.  It touches a lot of material on the test.
 
+<br/>
+
 **REMOVAL**
 
 Just delete the CloudFormation stack.  It will delete everything it created as though you never ran it.  It takes a good 10-15 minutes to complete.  And you can track progress in the Events tab.
 
 For thoroughness, when it is done, go to S3 and delete the "cfn-template*" bucket you will see there.  CloudFormation creates that to store stack templates that you upload, and you will incur a small charge for it if you don't delete it.  Otherwise, there should be no remnants.
+
+<br/>
 
 **USAGE NOTES**
 
@@ -53,6 +57,8 @@ If you have questions about anything in the CloudFormation stack, just ask.
 INT-1701 is open for an issue with our Redis integration showing recurring errors every 10 seconds in the Agent log that are not affecting operation but are annoying because they are spamming the log and are in fact invalid errors.   You will see those errors with Sock Shop (until it is fixed anyhow).
 
 INT-1702 is open for an issue with our MongoDB integration showing a recurring error every 10 seconds in the Agent log that is affecting operation.  We are missing many default metrics.  This is happening specifically with the carts-db service of Sock Shop.  The user-db service uses an older version of Mongo and does not exhibit the error, so it is easy to suspect the issue is with the new version of Mongo that carts-db uses.  We'll see.
+
+<br/>
 
 **SETTING THE HOSTNAME WITH FARGATE**
 
@@ -72,6 +78,7 @@ This is still not ideal though because we want to tie the hostname to a particul
 
 I opened FEED-2477 to recommend we use ECS metadata (specifically the task family name combined with the task ID) to set the hostname that we use in SignalFx for Fargate tasks.
 
+<br/>
 
 **SHELL ACCESS**
 
@@ -92,6 +99,8 @@ This allows us to hit the internal metrics URL from outside the container (on th
 curl http://<ip_address>:8095/?section=\<keyword\>
 
 You can get the IP address out of the CloudWatch log.
+
+<br/>
 
 **INTERNAL DNS/SERVICE DISCOVERY**
 
