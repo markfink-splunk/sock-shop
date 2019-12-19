@@ -7,7 +7,7 @@ Currently, the application is instrumented with Smart Agent only, not uAPM.  I p
 
 
 
-INSTALLATION (FOR ECS-FARGATE)
+**INSTALLATION (FOR ECS-FARGATE)**
 
 See the how-to videos at https://signalfuse.atlassian.net/wiki/spaces/SE/pages/907936295/Sock+Shop+Fargate+Lab.
 
@@ -32,15 +32,13 @@ When it completes, click the Outputs tab at the top.  You will see the Applicati
 
 If you are studying for your AWS cert, you would do well to study the CloudFormation stack.  It creates and integrates many AWS resources like a VPC, subnets, IAM roles, Route 53, Internet Gateway, Security Groups, DynamoDB and RDS databases, EC2, ALB, Target Groups, CloudWatch logging, and a slew of Fargate tasks.  It touches a lot of material on the test.
 
-
-REMOVAL
+**REMOVAL**
 
 Just delete the CloudFormation stack.  It will delete everything it created as though you never ran it.  It takes a good 10-15 minutes to complete.  And you can track progress in the Events tab.
 
 For thoroughness, when it is done, go to S3 and delete the "cfn-template*" bucket you will see there.  CloudFormation creates that to store stack templates that you upload, and you will incur a small charge for it if you don't delete it.  Otherwise, there should be no remnants.
 
-
-USAGE NOTES
+**USAGE NOTES**
 
 I use Visual Studio Code to read/edit the CloudFormation stack because it can roll-up sections of the file making it much easier to find sections you care about (like the individual task definitions that contain the Smart Agent sidecars), although other editors may do this also.  You can also look at the configurations for everything in the AWS Console after the stack is created. 
 
@@ -56,8 +54,7 @@ INT-1701 is open for an issue with our Redis integration showing recurring error
 
 INT-1702 is open for an issue with our MongoDB integration showing a recurring error every 10 seconds in the Agent log that is affecting operation.  We are missing many default metrics.  This is happening specifically with the carts-db service of Sock Shop.  The user-db service uses an older version of Mongo and does not exhibit the error, so it is easy to suspect the issue is with the new version of Mongo that carts-db uses.  We'll see.
 
-
-SETTING THE HOSTNAME WITH FARGATE
+**SETTING THE HOSTNAME WITH FARGATE**
 
 Every Fargate task (with the Smart Agent sidecar) will count as a host to SignalFx.  Each task is given a hostname and appears in Infrastructure Navigator like any other EC2 (even though they are not EC2s).  You can't tell the difference between a Fargate task and an EC2 in our UI.  In fact, the default hostname for a Fargate task takes the form of "ip-xxx-xxx-xxx-xxx.ec2.internal" so they are nearly impossible to identify in our UI unless you have very little else running.
 
@@ -76,7 +73,7 @@ This is still not ideal though because we want to tie the hostname to a particul
 I opened FEED-2477 to recommend we use ECS metadata (specifically the task family name combined with the task ID) to set the hostname that we use in SignalFx for Fargate tasks.
 
 
-SHELL ACCESS
+**SHELL ACCESS**
 
 With K8s and Docker, you can shell into containers to troubleshoot issues and look at the environment.  You can't do that with Fargate!  It is possible only by adding sshd into the container, enabling it for root, configuring a key pair, and opening network access to SSH, all of which is a horrible idea for security and neither quick nor easy to do anyway.  Iow, you temporarily drop-in a special Docker image with root-enabled sshd baked in, then switch back when you're done.  Yuck.
 
@@ -84,7 +81,7 @@ Other options:
 - Spin-up the task with an EC2 launch type.  This gives you CLI access to Docker then.  But you have to spin-up an EC2, join it to the cluster, temporarily reconfigure the task and service, etc.   Grrr..
 - Spin-up the Docker image on your laptop (using Docker).  This is not helpful though if you need to see what is happening specifically with Fargate.  For instance, I wanted to see what environment variables Fargate sets, which we won't see this way.
 - Use the 'Command' or 'EntryPoint' options in the task definition to override those options in the image and view the results in the CloudWatch log group.  For instance, if the original entrypoint in the Dockerfile is "java file.jar", you could modify the task definition to override that and instead run, for example, "printenv && java file.jar".  This outputs the environment variables then runs the java command after.  And this can be done without rebuilding the image so it is relatively easy.
-- On second thought, this is easy in a lab environment.  It's not easy in prod because updating the task definition with a new Command and running it implies tearing down the old task and spinning up a new one, which implies impacting the service.
+  - On second thought, this is easy in a lab environment.  It's not easy in prod because updating the task definition with a new Command and running it implies tearing down the old task and spinning up a new one, which implies impacting the service.
 
 One helpful tip I picked up for checking on the Smart Agent without a shell is to add this line to agent.yaml (which you will see in this project's agent.yaml file):
 
@@ -96,8 +93,7 @@ curl http://<ip_address>:8095/?section=\<keyword\>
 
 You can get the IP address out of the CloudWatch log.
 
-
-INTERNAL DNS/SERVICE DISCOVERY
+**INTERNAL DNS/SERVICE DISCOVERY**
 
 K8s handles internal DNS and service discovery (OOTB) much better than Fargate.  It is more or less automatic with K8s, at least with basic apps.  It can be done with Fargate, but it is not automatic even for basic apps.  You need to configure Service Discovery with each Fargate service which then triggers a combo of AWS Cloud Map and Route 53 configs.  And for the DNS resolution to work, you need to update your DHCP options (in the VPC) with the right domain -- oh, and make sure that DNS Resolution and DNS Hostnames are enabled for your VPC, which is not the default if the VPC is created via CloudFormation (know that one for the test!).  It's quite a pain, especially the more services there are.  Granted, there may be other service discovery solutions that are easier (Hashicorp's Consul?).  And Terraform (vs CloudFormation) may make it easier also.  I'm exploring this.
 
