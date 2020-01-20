@@ -11,6 +11,10 @@ hostname: {"#from": "env:SFX_HOSTNAME"}
 # from outside the container using http://<ip>:8095/?section=<keyword>.
 internalStatusHost: "0.0.0.0"
 
+cluster: sockshop-fargate
+
+traceEndpointUrl: http://smart-gateway:8080/v1/trace
+
 logging:
   level: {"#from": "env:LOG_LEVEL", default: "info"}
 
@@ -49,6 +53,7 @@ monitors:
     discoveryRule: container_image =~ "rabbitmq" && port == 15672
     username: guest
     password: guest
+  - type: trace-forwarder
 
     # You can set this envvar in your task definition to provide extra monitor
     # configuration to monitor applications running as ECS tasks.  You should
