@@ -1,0 +1,21 @@
+signalFxAccessToken: ${ACCESS_TOKEN}
+
+globalDimensions:
+  # Smart Gateway Cluster
+  cluster: sockshop-fargate
+observers:
+  - type: host
+
+monitors:
+  - type: host-metadata
+  - type: collectd/cpu
+  - type: collectd/cpufreq
+  - type: collectd/df
+  - type: collectd/disk
+  - type: collectd/interface
+  - type: collectd/load
+  - type: collectd/memory
+  - type: collectd/vmem
+  - type: collectd/signalfx-metadata
+    extraDimensions:
+      source: gateway
