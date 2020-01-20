@@ -1,4 +1,5 @@
 signalFxAccessToken: ${ACCESS_TOKEN}
+hostname: {"#from": "env:SFX_HOSTNAME"}
 
 globalDimensions:
   # Smart Gateway Cluster
