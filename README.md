@@ -1,9 +1,7 @@
 # sock-shop
-This provides everything needed to run the Weaveworks Sock Shop demo app (https://microservices-demo.github.io/) in environments not otherwise provided by Weaveworks, starting with ECS/Fargate.  I plan to do EKS/Fargate next.  It is delivered as a CloudFormation stack that provisions all AWS resources necessary to run the app and monitor it with SignalFx instrumentation.  
+This provides everything needed to run the Weaveworks Sock Shop demo app (https://microservices-demo.github.io/) in environments not otherwise provided by Weaveworks, starting with ECS/Fargate.  It is delivered as a CloudFormation stack that provisions all AWS resources necessary to run the app and monitor it with SignalFx instrumentation.  
 
-You will incur a small cost to run the app; should be about $1/hour (in us-east-1 anyhow).
-
-Currently, the application is instrumented with Smart Agent only, not uAPM.  I plan to do uAPM after EKS.  If others would like to work on the uAPM piece, that's fine; otherwise, I will get to it when I get to it.  I'd also like to work on a Terraform configuration in place of CloudFormation.  And I'd like to build this for Azure and GCP also.  I'll be busy!
+You will incur a small cost to run the app; should be about $0.30/hour (in us-east-1 anyhow).
 
 <br/>
 
@@ -21,14 +19,17 @@ us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1, eu-central-1, ap-northeas
 
 The region limitation is tied to an AMI that Weaveworks created and hosts in these regions.  
 
-With those pieces in place, download the cfn-stack.yaml file for the deployment type you want (currently only ecs-fargate is available) and use it to create a stack in CloudFormation in the AWS Console.  You will need to give it a name and you will be prompted to select the Key Pair you want to use.  Then just click Next with defaults until you get to the screen with the orange "Create stack" button in the bottom right corner.
+With those pieces in place, download the cfn-stack-*.yaml file for the deployment type you want (currently only ecs-fargate is available) and use it to create a stack in CloudFormation in the AWS Console.  There are currently two options:
+- cfn-stack-infra-only.yaml - instrumented with Smart Agent but not our uAPM tracers.  This version includes a Zipkin server; a few of the services are instrumented with Zipkin.
+- cfn-stack-uapm.yaml - instrumented with both Smart Agent and our uAPM tracers.  This version removes the Zipkin server and adds the Smart Gateway.  The services written in Go are manually instrumented with Zipkin (they were written this way originally; I redirected the traces to our Gateway).  The Go version is 1.7, which we do not support with our tracer.  All other services are instrumented with our tracers (Node.js and Java).  This version also removes DynamaDB for the orders db and uses mongo instead (per the K8s version of the application).
+
+When you create the stack in AWS, you will need to give it a name and you will be prompted to select the Key Pair you want to use.  Then just click Next with defaults until you get to the screen with the orange "Create stack" button in the bottom right corner.
 
 At this point, simply check the checkbox for "I acknowledge that AWS CloudFormation might create IAM resources."  You must check that box for the stack to run.  The stack does indeed create IAM resources.  Once checked, click the orange "Create stack" button.
 
 In N. Virginia (us-east-1), it takes about 15 minutes to complete.  When you click "Create stack", it should take you to the Events tab which you can refresh and track progress.  Please report any errors you see.  I have tested in us-east-1 only (I see no reason why it shouldn't work in the other regions above though).
 
-When it completes, click the Outputs tab at the top.  You will see the Application URL and Zipkin URL.  The Application URL is for the Sock Shop application.  Just click it; it's that easy!   The Zipkin URL is for an included Zipkin server.  A few of the Sock Shop services are configured to generate traces and send them to a Zipkin collector.  I kept all that for now for the curious.  As I implement uAPM, I will remove the Zipkin pieces -- but this can be done in a separate stack with different Docker images.
-
+When it completes, click the Outputs tab at the top.  You will see the Application URL and Zipkin URL.  The Application URL is for the Sock Shop application.  Just click it; it's that easy!   The Zipkin URL is for an included Zipkin server (for the infra-only version).
 
 If you are studying for your AWS cert, you would do well to study the CloudFormation stack.  It creates and integrates many AWS resources like a VPC, subnets, IAM roles, Route 53, Internet Gateway, Security Groups, DynamoDB and RDS databases, EC2, ALB, Target Groups, CloudWatch logging, and a slew of Fargate tasks.  It touches a lot of material on the test.
 
