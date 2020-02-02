@@ -510,7 +510,7 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       ContainerDefinitions:
-        - Image: marksfink/sockshop-catalogue:0.3.5-zipkin-1
+        - Image: marksfink/sockshop-catalogue:0.3.5-sfx
           Essential: true
           Name: catalogue
           Command:
@@ -535,8 +535,14 @@ Resources:
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: catalogue
           Environment:
-            - Name: ZIPKIN
-              Value: 'http://localhost:9080/v1/trace'
+            - Name: SIGNALFX_SERVICE_NAME
+              Value: "catalogue"
+            - Name: SIGNALFX_ENDPOINT_URL
+              Value: http://localhost:9080/v1/trace
+            - Name: DD_PROPAGATION_STYLE_INJECT
+              Value: "B3"
+            - Name: DD_PROPAGATION_STYLE_EXTRACT
+              Value: "B3"
           PortMappings:
             - ContainerPort: 80
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
@@ -798,7 +804,7 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       ContainerDefinitions:
-        - Image: marksfink/sockshop-user:0.4.7-zipkin-1
+        - Image: marksfink/sockshop-user:0.4.7-sfx
           Essential: true
           Name: user
           LogConfiguration:
@@ -808,8 +814,14 @@ Resources:
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: user
           Environment:
-            - Name: ZIPKIN
-              Value: 'http://localhost:9080/v1/trace'
+            - Name: SIGNALFX_SERVICE_NAME
+              Value: "user"
+            - Name: SIGNALFX_ENDPOINT_URL
+              Value: http://localhost:9080/v1/trace
+            - Name: DD_PROPAGATION_STYLE_INJECT
+              Value: "B3"
+            - Name: DD_PROPAGATION_STYLE_EXTRACT
+              Value: "B3"
           PortMappings:
             - ContainerPort: 80
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
@@ -1098,7 +1110,7 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       ContainerDefinitions:
-        - Image: marksfink/sockshop-payment:0.4.3-zipkin-1
+        - Image: marksfink/sockshop-payment:0.4.3-sfx
           Essential: true
           Name: payment
           Command:
@@ -1111,8 +1123,14 @@ Resources:
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: payment
           Environment:
-            - Name: ZIPKIN
-              Value: 'http://localhost:9080/v1/trace'
+            - Name: SIGNALFX_SERVICE_NAME
+              Value: "payment"
+            - Name: SIGNALFX_ENDPOINT_URL
+              Value: http://localhost:9080/v1/trace
+            - Name: DD_PROPAGATION_STYLE_INJECT
+              Value: "B3"
+            - Name: DD_PROPAGATION_STYLE_EXTRACT
+              Value: "B3"
           PortMappings:
             - ContainerPort: 80
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
