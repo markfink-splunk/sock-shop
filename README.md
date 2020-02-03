@@ -1,7 +1,17 @@
 # sock-shop
 This provides everything needed to run the Weaveworks Sock Shop demo app (https://microservices-demo.github.io/) in environments not otherwise provided by Weaveworks, starting with ECS/Fargate.  It is delivered as a CloudFormation stack that provisions all AWS resources necessary to run the app and monitor it with SignalFx instrumentation.  
 
-You will incur a small cost to run the app; should be about $0.30/hour (in us-east-1 anyhow).
+You will incur a small cost to run the app: about $0.30/hour in us-east-1.
+
+<br/>
+
+**TO-DO**
+
+- Upload modified build directories for all services so you can see how I instrumented uAPM.  Track future changes.
+- Add tracing to Go-based services (catalogue, user, payment) for packages we support for auto-instrument; currently only net/http is instrumented.
+- Update to new versions of the agent and gateway.
+- Create deployment for EKS/Fargate.
+- Create Terraform scripts for deployments.
 
 <br/>
 
@@ -14,30 +24,28 @@ Requirements:
 - A Key Pair configured in the EC2 console (easy to do).
 - A SecureString parameter configured in the Systems Manager Parameter Store called 'sfx_access_token' that contains the SignalFx access token you wish to use.
 
-The stack should work in the following regions (it will definitely fail in any other region):
+The stack should work in the following regions (it will fail in any other region):
 us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1, eu-central-1, ap-northeast-1, ap-southeast-1, ap-southeast-2
 
 The region limitation is tied to an AMI that Weaveworks created and hosts in these regions.  
 
 With those pieces in place, download the cfn-stack-*.yaml file for the deployment type you want (currently only ecs-fargate is available) and use it to create a stack in CloudFormation in the AWS Console.  There are currently two options:
-- cfn-stack-infra-only.yaml - instrumented with Smart Agent but not our uAPM tracers.  This version includes a Zipkin server; a few of the services are instrumented with Zipkin.
-- cfn-stack-uapm.yaml - instrumented with both Smart Agent and our uAPM tracers.  This version removes the Zipkin server and adds the Smart Gateway.  The services written in Go are manually instrumented with Zipkin (they were written this way originally; I redirected the traces to our Gateway).  The Go version is 1.7, which we do not support with our tracer.  All other services are instrumented with our tracers (Node.js and Java).  This version also removes DynamoDB for the orders db and uses mongo instead (per the K8s version of the application).
+- cfn-stack-infra-only.yaml - instrumented with Smart Agent but not our uAPM tracers.  This version includes a Zipkin server; the Go-based services are instrumented with OpenTracing and OpenZipkin.
+- cfn-stack-uapm.yaml - instrumented with both Smart Agent and our uAPM tracers.  This version removes the Zipkin server and adds the Smart Gateway.  I kept the original OpenTracing-instrumented components of the Go-based services, upgraded the Go version (it was 1.7; now it is 1.13) and implemented the SignalFx Go tracer (which requires Go 1.12+) in place of OpenZipkin.  This version also removes DynamoDB for the orders db and uses mongo instead.
 
-When you create the stack in AWS, you will need to give it a name and you will be prompted to select the Key Pair you want to use.  Then just click Next with defaults until you get to the screen with the orange "Create stack" button in the bottom right corner.
+When you create the stack in AWS, you will need to give it a name and you will be prompted to select the Key Pair you want to use.  Then click Next with defaults until you get to the screen with the orange "Create stack" button in the bottom right corner.
 
-At this point, simply check the checkbox for "I acknowledge that AWS CloudFormation might create IAM resources."  You must check that box for the stack to run.  The stack does indeed create IAM resources.  Once checked, click the orange "Create stack" button.
+Check the checkbox for "I acknowledge that AWS CloudFormation might create IAM resources."  You must check that box for the stack to run.  The stack does indeed create IAM resources.  Once checked, click the orange "Create stack" button.
 
 In N. Virginia (us-east-1), it takes about 15 minutes to complete.  When you click "Create stack", it should take you to the Events tab which you can refresh and track progress.  Please report any errors you see.  I have tested in us-east-1 only (I see no reason why it shouldn't work in the other regions above though).
 
 When it completes, click the Outputs tab at the top.  You will see the Application URL and Zipkin URL.  The Application URL is for the Sock Shop application.  Just click it; it's that easy!   The Zipkin URL is for an included Zipkin server (for the infra-only version).
 
-If you are studying for your AWS cert, you would do well to study the CloudFormation stack.  It creates and integrates many AWS resources like a VPC, subnets, IAM roles, Route 53, Internet Gateway, Security Groups, DynamoDB and RDS databases, EC2, ALB, Target Groups, CloudWatch logging, and a slew of Fargate tasks.  It touches a lot of material on the test.
-
 <br/>
 
 **REMOVAL**
 
-Just delete the CloudFormation stack.  It will delete everything it created as though you never ran it.  It takes a good 10-15 minutes to complete.  And you can track progress in the Events tab.
+Just delete the CloudFormation stack.  It will delete everything it created as though you never ran it.  It takes about 15 minutes to complete.  And you can track progress in the Events tab.
 
 For thoroughness, when it is done, go to S3 and delete the "cfn-template*" bucket you will see there.  CloudFormation creates that to store stack templates that you upload, and you will incur a small charge for it if you don't delete it.  Otherwise, there should be no remnants.
 
