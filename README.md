@@ -9,6 +9,7 @@ You will incur a small cost to run the app: about $0.30/hour in us-east-1.
 
 - Upload modified build directories for all services so you can see how I instrumented uAPM.  Track future changes.
 - Add tracing to Go-based services (catalogue, user, payment) for packages we support for auto-instrument; currently only net/http is instrumented.
+- Send logs to Splunk Cloud instead of CloudWatch; create integration that can be demoed.
 - Update to new versions of the agent and gateway.
 - Create deployment for EKS/Fargate.
 - Create Terraform scripts for deployments.
@@ -32,6 +33,8 @@ The region limitation is tied to an AMI that Weaveworks created and hosts in the
 With those pieces in place, download the cfn-stack-*.yaml file for the deployment type you want (currently only ecs-fargate is available) and use it to create a stack in CloudFormation in the AWS Console.  There are currently two options:
 - cfn-stack-infra-only.yaml - instrumented with Smart Agent but not our uAPM tracers.  This version includes a Zipkin server; the Go-based services are instrumented with OpenTracing and OpenZipkin.
 - cfn-stack-uapm.yaml - instrumented with both Smart Agent and our uAPM tracers.  This version removes the Zipkin server and adds the Smart Gateway.  I kept the original OpenTracing-instrumented components of the Go-based services, upgraded the Go version (it was 1.7; now it is 1.13) and implemented the SignalFx Go tracer (which requires Go 1.12+) in place of OpenZipkin.  This version also removes DynamoDB for the orders db and uses mongo instead.
+  - The stack uses marksfink/sockshop-carts:0.4.8-bad with which you cannot delete items out of the cart (for the demo).  If you prefer a correctly working cart, then change the image to marksfink/sockshop-carts:0.4.8-sfx.
+  - You may also use marksfink/sockshop-user:0.4.7-sfx-bad in which you cannot place orders (it also creates 500 errors).  This does not generate as many errors (because you cannot click on it repeatedly like you can the delete button in the cart) and is therefore not as impactful to the dashboard, but it creates an error and stack trace that is easier to interpret and directly relatable to the source code, which may play better in the right circumstances.  I may update the stack to use this by default if I find it is impactful with prospects.
 
 When you create the stack in AWS, you will need to give it a name and you will be prompted to select the Key Pair you want to use.  Then click Next with defaults until you get to the screen with the orange "Create stack" button in the bottom right corner.
 
