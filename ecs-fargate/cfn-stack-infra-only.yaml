@@ -350,7 +350,7 @@ Resources:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-carts-db-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -420,7 +420,7 @@ Resources:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-carts-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -509,7 +509,7 @@ Resources:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-catalogue-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -624,7 +624,7 @@ Resources:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-front-end-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -701,7 +701,7 @@ Resources:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-session-db-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -774,7 +774,7 @@ Resources:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-user-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -847,7 +847,7 @@ Resources:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-user-db-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -924,7 +924,7 @@ Resources:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-orders-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -998,7 +998,7 @@ Resources:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-payment-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -1071,7 +1071,7 @@ Resources:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-queue-master-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -1146,7 +1146,7 @@ Resources:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-rabbitmq-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -1216,7 +1216,7 @@ Resources:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-shipping-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
