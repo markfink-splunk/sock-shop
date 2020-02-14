@@ -1,12 +1,12 @@
 # This agent config file is designed for use within an ECS task.  The agent
 # should be as a Fargate service within an ECS task.
-signalFxAccessToken: {"#from": "env:ACCESS_TOKEN"}
-signalFxRealm: us1
+signalFxAccessToken: ${ACCESS_TOKEN}
+signalFxRealm: {"#from": "env:SFX_REALM", default: "us0"}
 intervalSeconds: {"#from": "env:INTERVAL_SECONDS", default: 10}
 
 # Define SFX_HOSTNAME in the task definition to avoid the default generic AWS
 # hostname.
-hostname: {"#from": "env:SFX_HOSTNAME"}
+hostname: ${SFX_HOSTNAME}
 # This is helpful for Fargate so we can query internal metrics and metadata
 # from outside the container using http://<ip>:8095/?section=<keyword>.
 internalStatusHost: "0.0.0.0"

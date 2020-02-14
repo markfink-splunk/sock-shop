@@ -36,7 +36,7 @@ With those pieces in place, download the cfn-stack-*.yaml file for the deploymen
   - The stack uses marksfink/sockshop-carts:0.4.8-bad with which you cannot delete items out of the cart (for the demo).  If you prefer a correctly working cart, then change the image to marksfink/sockshop-carts:0.4.8-sfx.
   - You may also use marksfink/sockshop-user:0.4.7-sfx-bad in which you cannot place orders (it also creates 500 errors).  This does not generate as many errors (because you cannot click on it repeatedly like you can the delete button in the cart) and is therefore not as impactful to the dashboard, but it creates an error and stack trace that is easier to interpret and directly relatable to the source code, which may play better in the right circumstances.  I may update the stack to use this by default if I find it is impactful with prospects.
 
-When you create the stack in AWS, you will need to give it a name and you will be prompted to select the Key Pair you want to use.  Then click Next with defaults until you get to the screen with the orange "Create stack" button in the bottom right corner.
+When you create the stack in AWS, you will need to give it a name and you will be prompted to select the Key Pair you want to use.  You will also be prompted for the SignalFx realm to send data to.  Then click Next with defaults until you get to the screen with the orange "Create stack" button in the bottom right corner.
 
 Check the checkbox for "I acknowledge that AWS CloudFormation might create IAM resources."  You must check that box for the stack to run.  The stack does indeed create IAM resources.  Once checked, click the orange "Create stack" button.
 

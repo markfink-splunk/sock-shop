@@ -36,7 +36,16 @@ Parameters:
       Name of an existing EC2 KeyPair to enable SSH access to the SQLImporter
       EC2 instance (if none appear in drop-down menu, you need to create one)
     MinLength: '1'
-    ConstraintDescription: must be the name of an existing EC2 KeyPair.   
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  Realm:
+    Type: String
+    Description: SignalFx realm to send data to
+    AllowedValues:
+    - us0
+    - us1
+    - us2
+    - eu0
+    - ap0
 Resources:
   LogGroup:
     Type: AWS::Logs::LogGroup
@@ -349,6 +358,8 @@ Resources:
           Command:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-carts-db-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
             - Name: CONFIG_URL
               Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
@@ -419,6 +430,8 @@ Resources:
           Command:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-carts-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
             - Name: CONFIG_URL
               Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
@@ -508,6 +521,8 @@ Resources:
           Command:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-catalogue-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
             - Name: CONFIG_URL
               Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
@@ -623,6 +638,8 @@ Resources:
           Command:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-front-end-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
             - Name: CONFIG_URL
               Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
@@ -700,6 +717,8 @@ Resources:
           Command:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-session-db-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
             - Name: CONFIG_URL
               Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
@@ -773,6 +792,8 @@ Resources:
           Command:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-user-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
             - Name: CONFIG_URL
               Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
@@ -846,6 +867,8 @@ Resources:
           Command:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-user-db-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
             - Name: CONFIG_URL
               Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
@@ -923,6 +946,8 @@ Resources:
           Command:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-orders-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
             - Name: CONFIG_URL
               Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
@@ -997,6 +1022,8 @@ Resources:
           Command:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-payment-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
             - Name: CONFIG_URL
               Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
@@ -1070,6 +1097,8 @@ Resources:
           Command:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-queue-master-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
             - Name: CONFIG_URL
               Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
@@ -1145,6 +1174,8 @@ Resources:
           Command:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-rabbitmq-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
             - Name: CONFIG_URL
               Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
@@ -1215,6 +1246,8 @@ Resources:
           Command:
             - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-shipping-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
           Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
             - Name: CONFIG_URL
               Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
