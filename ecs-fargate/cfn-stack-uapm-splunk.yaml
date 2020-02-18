@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
   Resources required to run the Weaveworks Sock Shop app on an ECS cluster with
-  Fargate.  This includes the SignalFx Smart Agent for each task.
+  Fargate.  This includes the SignalFx Smart Agent for each task and Splunk integration.
 Mappings: 
   VpcCidrs:
     vpc:
@@ -29,6 +29,25 @@ Mappings:
       ImageId: ami-dc9339bf
     ap-southeast-2:
       ImageId: ami-1c47407f
+  SplunkImporterAmiId:
+    us-east-1: 
+      ImageId: ami-0a9a2a150c7b518b7
+    us-east-2:
+      ImageId: ami-0e3a9a7a390823afa
+    us-west-1:
+      ImageId: ami-0cec93a7660844d8e
+    us-west-2:
+      ImageId: ami-02a3816df4dda2fed
+    eu-west-1: 
+      ImageId: ami-0678bcdd647f5e814
+    eu-central-1:
+      ImageId: ami-09b195dc2f2b8bc13
+    ap-northeast-1:
+      ImageId: ami-01da73ba5e74624bb
+    ap-southeast-1:
+      ImageId: ami-0ded7a8f1fa8b7033
+    ap-southeast-2:
+      ImageId: ami-08f60470f6bae148b
 Parameters:
   KeyName:
     Type: 'AWS::EC2::KeyPair::KeyName'
@@ -36,7 +55,7 @@ Parameters:
       Name of an existing EC2 KeyPair to enable SSH access to the SQLImporter
       EC2 instance (if none appear in drop-down menu, you need to create one)
     MinLength: '1'
-    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+    ConstraintDescription: must be the name of an existing EC2 KeyPair. 
   Realm:
     Type: String
     Description: SignalFx realm to send data to
@@ -46,23 +65,26 @@ Parameters:
     - us2
     - eu0
     - ap0
+  InstanceType:
+    Description: Splunk EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+      - t2.2xlarge
+      - c5.large
+      - c5.xlarge
+      - c5.2xlarge
+      - c5.4xlarge 
 Resources:
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Ref 'AWS::StackName'
-  DynamoDbTaskRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: [ecs-tasks.amazonaws.com]
-            Action: ['sts:AssumeRole']
-      Path: /
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
   EcsTaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -175,14 +197,6 @@ Resources:
       FromPort: 80
       ToPort: 80
       CidrIp: 0.0.0.0/0
-  ElbSecurityGroupIngressZipkinPort:
-    Type: 'AWS::EC2::SecurityGroupIngress'
-    Properties:
-      GroupId: !Ref ElbSecurityGroup
-      IpProtocol: tcp
-      FromPort: 9411
-      ToPort: 9411
-      CidrIp: 0.0.0.0/0
   EcsSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -208,23 +222,71 @@ Resources:
       GroupId: !Ref EcsSecurityGroup
       SourceSecurityGroupId: !Ref EcsSecurityGroup
       IpProtocol: '-1'
-  OrdersDynamoDB:
-    Type: 'AWS::DynamoDB::Table'
+  SplunkSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      AttributeDefinitions:
-        - AttributeName: id
-          AttributeType: S
-        - AttributeName: customerId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: id
-          KeyType: HASH
-        - AttributeName: customerId
-          KeyType: RANGE
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
-      TableName: orders
+      VpcId: !Ref Vpc
+      GroupDescription: 'Splunk external ports'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '8000'
+          ToPort: '8000'
+          CidrIp: 0.0.0.0/0
+  SplunkSecurityGroupEcsPorts:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref SplunkSecurityGroup
+      SourceSecurityGroupId: !Ref EcsSecurityGroup
+      IpProtocol: '-1'
+  SplunkSecurityGroupElbPorts:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref SplunkSecurityGroup
+      SourceSecurityGroupId: !Ref ElbSecurityGroup
+      IpProtocol: '-1'
+  SplunkInstance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !FindInMap 
+        - SplunkImporterAmiId
+        - !Ref 'AWS::Region'
+        - ImageId
+      InstanceType: !Ref InstanceType
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref SplunkSecurityGroup
+          SubnetId: !Ref PubSubnetAz1
+          PrivateIpAddress: 172.31.0.212
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: role
+          Value: splunk
+        - Key: Name
+          Value: splunk
+      KeyName: !Ref KeyName
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: '50'
+      UserData: 
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash
+            mkdir /opt/splunk/etc/apps/splunk_httpinput
+            mkdir /opt/splunk/etc/apps/splunk_httpinput/local
+            touch /opt/splunk/etc/apps/splunk_httpinput/local/inputs.conf
+            echo "[http]" >> /opt/splunk/etc/apps/splunk_httpinput/local/inputs.conf
+            echo "disabled = 0" >> /opt/splunk/etc/apps/splunk_httpinput/local/inputs.conf
+            echo -e "\n[http://sockshop]" >> /opt/splunk/etc/apps/splunk_httpinput/local/inputs.conf
+            echo "token = 7f290a2b-c2b0-48b5-94e7-ede29475dcea" >> /opt/splunk/etc/apps/splunk_httpinput/local/inputs.conf
+            chown -R splunk:splunk /opt/splunk/etc/apps/splunk_httpinput
   CatalogueRDS:
     Type: 'AWS::RDS::DBInstance'
     DeletionPolicy: Delete
@@ -324,7 +386,83 @@ Resources:
   EcsCluster:
     Type: 'AWS::ECS::Cluster'
     Properties:
-      ClusterName: Sock-Shop
+      ClusterName: sockshop-fargate
+  SmartGatewayTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: marksfink/smart-gateway:2.0.4
+          Essential: true
+          Name: smart-gateway
+          LogConfiguration:
+            LogDriver: splunk
+            Options:
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
+          PortMappings:
+            - ContainerPort: 8080
+          EntryPoint:
+            - bash
+            - "-c"
+          Command:
+            - "read -d '.' -a HOST <<< \"$HOSTNAME\" && \
+            export SFX_HOSTNAME=sockshop-smartgateway-$HOST && \
+            curl --fail $AGENTCFG > /var/config/gateway/agent.yaml && \
+            curl --fail $GWCFG > /var/config/gateway/gateway.conf && \
+            ( signalfx-agent -config /var/config/gateway/agent.yaml & ) && \
+            /smart-gateway --configfile /var/config/gateway/gateway.conf"
+          Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
+            - Name: AGENTCFG
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/gateway/agent.yaml"
+            - Name: GWCFG
+              Value: !Join
+                - ""
+                - - "https://raw.githubusercontent.com/signalfx/sock-shop/master/gateway/gateway-"
+                  - !Ref Realm
+                  - ".conf"
+          Secrets:
+            - Name: ACCESS_TOKEN
+              ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '1024'
+      Cpu: '256'
+  SmartGatewayDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: smart-gateway
+      NamespaceId: !Ref LocalNamespace
+  SmartGatewayService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      ServiceRegistries:
+        - RegistryArn: !GetAtt SmartGatewayDns.Arn
+      TaskDefinition: !Ref SmartGatewayTask
   CartsDBTask:
     Type: 'AWS::ECS::TaskDefinition'
     Properties:
@@ -335,11 +473,12 @@ Resources:
           Essential: true
           Name: carts-db
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: carts-db
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           PortMappings:
             - ContainerPort: 27017
           DockerLabels:
@@ -347,11 +486,12 @@ Resources:
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
           Name: carts-db-agent
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: cartsdb-agent
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           EntryPoint:
             - bash
             - "-c"
@@ -384,6 +524,7 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   CartsDBService:
     Type: 'AWS::ECS::Service'
+    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -405,25 +546,37 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       ContainerDefinitions:
-        - Image: weaveworksdemos/carts
+        - Image: marksfink/sockshop-carts:0.4.8-bad
           Essential: true
           Name: carts
+          EntryPoint:
+            - /bin/sh
+            - "-c"
+          Command:
+            - "java $JAVA_OPTS -jar ./app.jar --port=80"
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: carts
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
+          Environment:
+            - Name: SIGNALFX_SERVICE_NAME
+              Value: 'carts'
+            - Name: JAVA_OPTS
+              Value: '-javaagent:signalfx-tracing.jar -Xms32m -Xmx64m'
           PortMappings:
             - ContainerPort: 80
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
           Name: carts-agent
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: carts-agent
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           EntryPoint:
             - bash
             - "-c"
@@ -440,7 +593,7 @@ Resources:
       Volumes: []
       NetworkMode: awsvpc
       ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
-      Memory: '1024'
+      Memory: '512'
       Cpu: '256'
   CartsDns:
     Type: AWS::ServiceDiscovery::Service
@@ -456,7 +609,9 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   CartsService:
     Type: 'AWS::ECS::Service'
-    DependsOn: CartsDBService
+    DependsOn: 
+    - CartsDBService
+    - SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -478,7 +633,7 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       ContainerDefinitions:
-        - Image: weaveworksdemos/catalogue
+        - Image: marksfink/sockshop-catalogue:0.3.5-sfx
           Essential: true
           Name: catalogue
           Command:
@@ -497,24 +652,32 @@ Resources:
                   - Endpoint.Port
                 - )/socksdb
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: catalogue
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           Environment:
-            - Name: ZIPKIN
-              Value: 'http://zipkin:9411/api/v1/spans'
+            - Name: SIGNALFX_SERVICE_NAME
+              Value: "catalogue"
+            - Name: SIGNALFX_ENDPOINT_URL
+              Value: http://localhost:9080/v1/trace
+            - Name: DD_PROPAGATION_STYLE_INJECT
+              Value: "B3"
+            - Name: DD_PROPAGATION_STYLE_EXTRACT
+              Value: "B3"
           PortMappings:
             - ContainerPort: 80
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
           Name: catalogue-agent
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: catalogue-agent
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           EntryPoint:
             - bash
             - "-c"
@@ -547,7 +710,9 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   CatalogueService:
     Type: 'AWS::ECS::Service'
-    DependsOn: SQLImporter
+    DependsOn:
+    - SQLImporter
+    - SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -583,6 +748,7 @@ Resources:
       TargetType: ip
       Port: 8079
       Protocol: HTTP
+      HealthCheckPath: /metrics
       VpcId: !Ref Vpc
   FrontEndListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -610,28 +776,32 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       ContainerDefinitions:
-        - Image: weaveworksdemos/front-end
+        - Image: marksfink/sockshop-front-end:0.3.12-sfx
           Essential: true
           Name: front-end
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: frontend
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           Environment:
             - Name: SESSION_REDIS
               Value: 'true'
+            - Name: SIGNALFX_SERVICE_NAME
+              Value: 'front-end'
           PortMappings:
             - ContainerPort: 8079
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
           Name: front-end-agent
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: front-end-agent
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           EntryPoint:
             - bash
             - "-c"
@@ -664,7 +834,9 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   FrontEndService:
     Type: 'AWS::ECS::Service'
-    DependsOn: FrontEndListenerRule
+    DependsOn:
+    - FrontEndListenerRule
+    - SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -694,11 +866,12 @@ Resources:
           Essential: true
           Name: session-db
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: session-db
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           PortMappings:
             - ContainerPort: 6379
           DockerLabels:
@@ -706,11 +879,12 @@ Resources:
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
           Name: session-db-agent
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: session-db-agent
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           EntryPoint:
             - bash
             - "-c"
@@ -743,6 +917,7 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   SessionDBService:
     Type: 'AWS::ECS::Service'
+    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -764,28 +939,36 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       ContainerDefinitions:
-        - Image: weaveworksdemos/user
+        - Image: marksfink/sockshop-user:0.4.7-sfx
           Essential: true
           Name: user
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: user
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           Environment:
-            - Name: ZIPKIN
-              Value: 'http://zipkin:9411/api/v1/spans'
+            - Name: SIGNALFX_SERVICE_NAME
+              Value: "user"
+            - Name: SIGNALFX_ENDPOINT_URL
+              Value: http://localhost:9080/v1/trace
+            - Name: DD_PROPAGATION_STYLE_INJECT
+              Value: "B3"
+            - Name: DD_PROPAGATION_STYLE_EXTRACT
+              Value: "B3"
           PortMappings:
             - ContainerPort: 80
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
           Name: user-agent
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: user-agent
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           EntryPoint:
             - bash
             - "-c"
@@ -818,7 +1001,9 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   UserService:
     Type: 'AWS::ECS::Service'
-    DependsOn: UserDBService
+    DependsOn:
+    - UserDBService
+    - SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -844,11 +1029,12 @@ Resources:
           Essential: true
           Name: user-db
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: user-db
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           PortMappings:
             - ContainerPort: 27017
           DockerLabels:
@@ -856,11 +1042,12 @@ Resources:
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
           Name: user-db-agent
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: user-db-agent
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           EntryPoint:
             - bash
             - "-c"
@@ -893,6 +1080,7 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   UserDBService:
     Type: 'AWS::ECS::Service'
+    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -908,38 +1096,115 @@ Resources:
       TaskDefinition: !Ref UserDBTask
       ServiceRegistries:
         - RegistryArn: !GetAtt UserDBDns.Arn
+  OrdersDBTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: mongo
+          Essential: true
+          Name: orders-db
+          LogConfiguration:
+            LogDriver: splunk
+            Options:
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
+          PortMappings:
+            - ContainerPort: 27017
+          DockerLabels:
+            "agent.signalfx.com.port.27017": "true"
+        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+          Name: orders-db-agent
+          LogConfiguration:
+            LogDriver: splunk
+            Options:
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
+          EntryPoint:
+            - bash
+            - "-c"
+          Command:
+            - "read -d '.' -a HOST <<< \"$HOSTNAME\" && export SFX_HOSTNAME=sockshop-orders-db-$HOST && curl --fail $CONFIG_URL > /etc/signalfx/agent.yaml && exec /bin/signalfx-agent"
+          Environment:
+            - Name: SFX_REALM
+              Value: !Ref Realm
+            - Name: CONFIG_URL
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
+          Secrets:
+            - Name: ACCESS_TOKEN
+              ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '512'
+      Cpu: '256'
+  OrdersDBDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: orders-db
+      NamespaceId: !Ref LocalNamespace
+  OrdersDBService:
+    Type: 'AWS::ECS::Service'
+    DependsOn: SmartGatewayService
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref OrdersDBTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt OrdersDBDns.Arn
   OrdersTask:
     Type: 'AWS::ECS::TaskDefinition'
     Properties:
       RequiresCompatibilities:
         - FARGATE
       ContainerDefinitions:
-        - Image: weaveworksdemos/orders-aws
+        - Image: marksfink/sockshop-orders:0.4.7-sfx
           Essential: true
           Name: orders
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: orders
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           Environment:
-            - Name: AWS_DYNAMODB_ENDPOINT
-              Value: !Join 
-                - ''
-                - - dynamodb.
-                  - !Ref 'AWS::Region'
-                  - .amazonaws.com
+          - Name: SIGNALFX_SERVICE_NAME
+            Value: 'orders'
+          - Name: JAVA_OPTS
+            Value: '-javaagent:signalfx-tracing.jar -Xms64m -Xmx128m -XX:PermSize=32m -XX:MaxPermSize=64m -XX:+UseG1GC -Djava.security.egd=file:/dev/urandom'
           PortMappings:
             - ContainerPort: 80
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
           Name: orders-agent
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: orders-agent
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           EntryPoint:
             - bash
             - "-c"
@@ -956,8 +1221,7 @@ Resources:
       Volumes: []
       NetworkMode: awsvpc
       ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
-      TaskRoleArn: !GetAtt DynamoDbTaskRole.Arn
-      Memory: '1024'
+      Memory: '512'
       Cpu: '256'
   OrdersDns:
     Type: AWS::ServiceDiscovery::Service
@@ -973,6 +1237,9 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   OrdersService:
     Type: 'AWS::ECS::Service'
+    DependsOn:
+    - OrdersDBService
+    - SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -994,28 +1261,39 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       ContainerDefinitions:
-        - Image: weaveworksdemos/payment
+        - Image: marksfink/sockshop-payment:0.4.3-sfx
           Essential: true
           Name: payment
+          Command:
+            - /app/main
+            - '-port=80'
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: payment
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           Environment:
-            - Name: ZIPKIN
-              Value: 'http://zipkin:9411/api/v1/spans'
+            - Name: SIGNALFX_SERVICE_NAME
+              Value: "payment"
+            - Name: SIGNALFX_ENDPOINT_URL
+              Value: http://localhost:9080/v1/trace
+            - Name: DD_PROPAGATION_STYLE_INJECT
+              Value: "B3"
+            - Name: DD_PROPAGATION_STYLE_EXTRACT
+              Value: "B3"
           PortMappings:
             - ContainerPort: 80
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
           Name: payment-agent
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: payment-agent
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           EntryPoint:
             - bash
             - "-c"
@@ -1048,6 +1326,7 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   PaymentService:
     Type: 'AWS::ECS::Service'
+    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -1069,15 +1348,21 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       ContainerDefinitions:
-        - Image: weaveworksdemos/queue-master
+        - Image: marksfink/sockshop-queue-master:0.3.1-sfx
           Essential: true
           Name: queue-master
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: queue-master
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
+          Environment:
+            - Name: SIGNALFX_SERVICE_NAME
+              Value: 'queue-master'
+            - Name: JAVA_OPTS
+              Value: '-javaagent:signalfx-tracing.jar -Djava.security.egd=file:/dev/urandom'
           MountPoints:
             - ContainerPath: /var/run/docker.sock
               SourceVolume: VarRunDocker_Sock
@@ -1086,11 +1371,12 @@ Resources:
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
           Name: queue-master-agent
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: queue-master-agent
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           EntryPoint:
             - bash
             - "-c"
@@ -1110,7 +1396,7 @@ Resources:
       NetworkMode: awsvpc
       ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
       Memory: '1024'
-      Cpu: '256'
+      Cpu: '512'
   QueueMasterDns:
     Type: AWS::ServiceDiscovery::Service
     Properties: 
@@ -1125,6 +1411,9 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   QueueMasterService:
     Type: 'AWS::ECS::Service'
+    DependsOn:
+    - RabbitMQService
+    - SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -1150,11 +1439,12 @@ Resources:
           Essential: true
           Name: rabbitmq
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: rabbitmq
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           PortMappings:
             - ContainerPort: 5672
             - ContainerPort: 15672
@@ -1163,11 +1453,12 @@ Resources:
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
           Name: rabbitmq-agent
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: rabbitmq-agent
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           EntryPoint:
             - bash
             - "-c"
@@ -1200,6 +1491,7 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   RabbitMQService:
     Type: 'AWS::ECS::Service'
+    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -1221,25 +1513,32 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
       ContainerDefinitions:
-        - Image: weaveworksdemos/shipping
+        - Image: marksfink/sockshop-shipping:0.4.8-sfx
           Essential: true
           Name: shipping
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: shipping
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
+          Environment:
+            - Name: SIGNALFX_SERVICE_NAME
+              Value: 'shipping'
+            - Name: JAVA_OPTS
+              Value: '-javaagent:signalfx-tracing.jar -Xms64m -Xmx128m -XX:PermSize=32m -XX:MaxPermSize=64m -XX:+UseG1GC -Djava.security.egd=file:/dev/urandom'
           PortMappings:
             - ContainerPort: 80
         - Image: quay.io/signalfx/signalfx-agent:4.15.0
           Name: shipping-agent
           LogConfiguration:
-            LogDriver: awslogs
+            LogDriver: splunk
             Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: shipping-agent
+              splunk-url: https://172.31.0.212:8088
+              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
+              tag: "{{.Name}}"
+              splunk-insecureskipverify: true
           EntryPoint:
             - bash
             - "-c"
@@ -1256,7 +1555,7 @@ Resources:
       Volumes: []
       NetworkMode: awsvpc
       ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
-      Memory: '1024'
+      Memory: '512'
       Cpu: '256'
   ShippingDns:
     Type: AWS::ServiceDiscovery::Service
@@ -1272,6 +1571,7 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   ShippingService:
     Type: 'AWS::ECS::Service'
+    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -1287,200 +1587,13 @@ Resources:
       TaskDefinition: !Ref ShippingTask
       ServiceRegistries:
         - RegistryArn: !GetAtt ShippingDns.Arn
-  ZipkinTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      TargetType: ip
-      Port: 9411
-      Protocol: HTTP
-      HealthCheckPath: /health
-      VpcId: !Ref Vpc
-  ZipkinListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - TargetGroupArn: !Ref ZipkinTargetGroup
-          Type: 'forward'
-      LoadBalancerArn: !Ref FrontEndElb
-      Port: 9411
-      Protocol: HTTP
-  ZipkinListenerRule:
-    Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Properties:
-      Actions:
-        - TargetGroupArn: !Ref ZipkinTargetGroup
-          Type: forward
-      Conditions:
-        - Field: path-pattern
-          Values: ['*']
-      ListenerArn: !Ref ZipkinListener
-      Priority: 1
-  ZipkinTask:
-    Type: 'AWS::ECS::TaskDefinition'
-    Properties:
-      RequiresCompatibilities:
-        - FARGATE
-      ContainerDefinitions:
-        - Image: openzipkin/zipkin
-          Essential: true
-          Name: zipkin
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: zipkin
-          PortMappings:
-            - ContainerPort: 9411
-          Environment:
-            - Name: STORAGE_TYPE
-              Value: mysql
-            - Name: MYSQL_HOST
-              Value: zipkin-mysql
-      Volumes: []
-      NetworkMode: awsvpc
-      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
-      Memory: '1024'
-      Cpu: '512'
-  ZipkinDns:
-    Type: AWS::ServiceDiscovery::Service
-    Properties: 
-      DnsConfig:
-        RoutingPolicy: MULTIVALUE
-        DnsRecords:
-          - TTL: 10
-            Type: A
-      HealthCheckCustomConfig: 
-        FailureThreshold: 1
-      Name: zipkin
-      NamespaceId: !Ref LocalNamespace
-  ZipkinService:
-    Type: 'AWS::ECS::Service'
-    DependsOn:
-      - ZipkinListenerRule
-      - ZipkinDBService
-    Properties:
-      Cluster: !Ref EcsCluster
-      DesiredCount: 1
-      LaunchType: FARGATE
-      LoadBalancers:
-        - ContainerName: zipkin
-          ContainerPort: 9411
-          TargetGroupArn: !Ref ZipkinTargetGroup
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
-          SecurityGroups:
-            - !Ref EcsSecurityGroup
-          Subnets:
-            - !Ref PubSubnetAz1
-            - !Ref PubSubnetAz2
-      TaskDefinition: !Ref ZipkinTask
-      ServiceRegistries:
-        - RegistryArn: !GetAtt ZipkinDns.Arn
-  ZipkinCronTask:
-    Type: 'AWS::ECS::TaskDefinition'
-    Properties:
-      RequiresCompatibilities:
-        - FARGATE
-      ContainerDefinitions:
-        - Image: openzipkin/zipkin-dependencies
-          Essential: true
-          Name: zipkin-cron
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: zipkin-cron
-          Environment:
-            - Name: STORAGE_TYPE
-              Value: mysql
-            - Name: MYSQL_HOST
-              Value: zipkin-mysql
-            - Name: MYSQL_USER
-              Value: zipkin
-            - Name: MYSQL_PASS
-              Value: zipkin
-          EntryPoint:
-            - crond
-            - '-f'
-      Volumes: []
-      NetworkMode: awsvpc
-      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
-      Memory: '1024'
-      Cpu: '256'
-  ZipkinCronService:
-    Type: 'AWS::ECS::Service'
-    Properties:
-      Cluster: !Ref EcsCluster
-      DesiredCount: 1
-      LaunchType: FARGATE
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
-          SecurityGroups:
-            - !Ref EcsSecurityGroup
-          Subnets:
-            - !Ref PubSubnetAz1
-            - !Ref PubSubnetAz2
-      TaskDefinition: !Ref ZipkinCronTask
-    DependsOn: ZipkinDBService
-  ZipkinDBTask:
-    Type: 'AWS::ECS::TaskDefinition'
-    Properties:
-      RequiresCompatibilities:
-        - FARGATE
-      ContainerDefinitions:
-        - Image: openzipkin/zipkin-mysql
-          Essential: true
-          Name: zipkin-mysql
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: !Ref 'AWS::StackName'
-              awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: zipkin-db
-          PortMappings:
-            - ContainerPort: 3306
-      Volumes: []
-      NetworkMode: awsvpc
-      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
-      Memory: '1024'
-      Cpu: '256'
-  ZipkinDBDns:
-    Type: AWS::ServiceDiscovery::Service
-    Properties: 
-      DnsConfig:
-        RoutingPolicy: MULTIVALUE
-        DnsRecords:
-          - TTL: 10
-            Type: A
-      HealthCheckCustomConfig: 
-        FailureThreshold: 1
-      Name: zipkin-mysql
-      NamespaceId: !Ref LocalNamespace
-  ZipkinDBService:
-    Type: 'AWS::ECS::Service'
-    Properties:
-      Cluster: !Ref EcsCluster
-      DesiredCount: 1
-      LaunchType: FARGATE
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
-          SecurityGroups:
-            - !Ref EcsSecurityGroup
-          Subnets:
-            - !Ref PubSubnetAz1
-            - !Ref PubSubnetAz2
-      TaskDefinition: !Ref ZipkinDBTask
-      ServiceRegistries:
-        - RegistryArn: !GetAtt ZipkinDBDns.Arn
 Outputs:
   ApplicationURL:
     Description: "Application URL"
     Value: !Join ['', ['http://', !GetAtt [FrontEndElb, DNSName]]]
-  ZipkinURL:
-    Description: "Zipkin URL"
-    Value: !Join ['', ['http://', !GetAtt [FrontEndElb, DNSName], ':9411']]
+  SplunkURL:
+    Description: "Splunk URL"
+    Value: !Join ['', ['http://', !GetAtt [SplunkInstance, PublicDnsName], ':8000']]
+  SplunkPassword:
+    Description: "Splunk Credentials"
+    Value: !Join ['', ['Username: admin Password: ', 'SPLUNK-', !Ref SplunkInstance]]

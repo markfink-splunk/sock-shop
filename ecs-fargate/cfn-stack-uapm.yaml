@@ -319,11 +319,11 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: AGENTCFG
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/gateway/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/gateway/agent.yaml"
             - Name: GWCFG
               Value: !Join
                 - ""
-                - - "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/gateway/gateway-"
+                - - "https://raw.githubusercontent.com/signalfx/sock-shop/master/gateway/gateway-"
                   - !Ref Realm
                   - ".conf"
           Secrets:
@@ -399,7 +399,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -482,7 +482,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -581,7 +581,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -703,7 +703,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -784,7 +784,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -866,7 +866,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -943,7 +943,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -1018,7 +1018,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -1096,7 +1096,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -1183,7 +1183,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -1264,7 +1264,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -1344,7 +1344,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
@@ -1422,7 +1422,7 @@ Resources:
             - Name: SFX_REALM
               Value: !Ref Realm
             - Name: CONFIG_URL
-              Value: "https://raw.githubusercontent.com/timhard-splunk/sock-shop/master/ecs-fargate/agent.yaml"
+              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/ecs-fargate/agent.yaml"
           Secrets:
             - Name: ACCESS_TOKEN
               ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
