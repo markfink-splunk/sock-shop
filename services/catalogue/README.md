@@ -16,13 +16,15 @@ I modified two files primarily:
 
 This file contains the dependencies for the app that are needed to compile.  I added the signalfx tracer.  Look for these lines:
 
-```{
+```
+{
 	"importpath": "github.com/signalfx/signalfx-go-tracing",
 	"repository": "https://github.com/signalfx/signalfx-go-tracing",
 	"vcs": "git",
 	"branch": "master",
 	"notests": true
-},```
+},
+```
 
 I deleted stuff related to OpenZipkin.  The original manifest file is also there to compare. For better or worse, these manifest files are part of an obsolete Go dependency mgmt tool called gvt that you are unlikely to still see in use.  That said, I added the above lines and it worked fine.
 
