@@ -36,8 +36,11 @@ This is the main catalogue app.  The original version is there for you to compar
 A consequence of how I implemented the tracer is that it does not automatically use B3 headers to associate upstream and downstream spans.  You need to set these env variables for that to work:
 
 name: DD_PROPAGATION_STYLE_INJECT
+
 value: "B3"
+
 name: DD_PROPAGATION_STYLE_EXTRACT
+
 value: "B3"
 
 You can do this in the Fargate task definition or in a K8s deployment spec.  You will see I did this already in the CloudFormation template.
