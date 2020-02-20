@@ -34,6 +34,7 @@ Adding our tracer as a dependency is something you will most likely need to do f
 This is the main catalogue app.  The original version is there for you to compare.  The SignalFx tracer is implemented in a way that differs greatly from the documentation; however, it will use env variables for the service name and trace endpoint URL -- and I always prefer to use env variables for that, especially with Go, so that you can change those variables without rebuilding the app.
 
 A consequence of how I implemented the tracer is that it does not automatically use B3 headers to associate upstream and downstream spans.  You need to set these env variables for that to work:
+
 name: DD_PROPAGATION_STYLE_INJECT
 value: "B3"
 name: DD_PROPAGATION_STYLE_EXTRACT
