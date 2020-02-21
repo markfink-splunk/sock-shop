@@ -4,6 +4,8 @@
 
 <br/>
 
+Most of this is the same as the other Go services, however pay attention to the dependency mgmt tool below and to the last few paragraphs.
+
 For starters, the good folks at Weaveworks delivered the Go-based services (of which user is one) already manually-instrumented with OpenTracing and OpenZipkin -- and specifically for calls to the net/http library (and not the other libraries).
 
 As delivered by Weaveworks, the traces were sent using an old version of Thrift that we (SignalFx) do not support.  We kicked back errors on it.  So because it was quick and easy, I first changed the delivery format to Zipkin.  But that had issues that I attribute to bugs with OpenZipkin and Go.  Rather than spend time debugging that, I switched to using SignalFx's tracer.  For time's sake, I did not leverage the auto-instrument capabilities of our agent.  I was under a deadline to deliver a demo, so this represents technical debt.
