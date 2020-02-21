@@ -4,6 +4,8 @@
 
 <br/>
 
+Most of this is the same as the other Go services, however pay attention to the dependency mgmt tool below and to the last few paragraphs.
+
 For starters, the good folks at Weaveworks delivered the Go-based services (of which user is one) already manually-instrumented with OpenTracing and OpenZipkin -- and specifically for calls to the net/http library (and not the other libraries).
 
 As delivered by Weaveworks, the traces were sent using an old version of Thrift that we (SignalFx) do not support.  We kicked back errors on it.  So because it was quick and easy, I first changed the delivery format to Zipkin.  But that had issues that I attribute to bugs with OpenZipkin and Go.  Rather than spend time debugging that, I switched to using SignalFx's tracer.  For time's sake, I did not leverage the auto-instrument capabilities of our agent.  I was under a deadline to deliver a demo, so this represents technical debt.
@@ -27,9 +29,13 @@ Adding our tracer as a dependency is something you will most likely need to do f
 This is the main user app.  The original version is there for you to compare.  The SignalFx tracer is implemented in a way that differs greatly from the documentation; however, it will use env variables for the service name and trace endpoint URL -- and I always prefer to use env variables for that, especially with Go, so that you can change those variables without rebuilding the app.
 
 A consequence of how I implemented the tracer is that it does not automatically use B3 headers to associate upstream and downstream spans.  You need to set these env variables for that to work:
+
 name: DD_PROPAGATION_STYLE_INJECT
+
 value: "B3"
+
 name: DD_PROPAGATION_STYLE_EXTRACT
+
 value: "B3"
 
 You can do this in the Fargate task definition or in a K8s deployment spec.  You will see I did this already in the CloudFormation template.

@@ -7,7 +7,6 @@ You will incur a small cost to run the app: about $0.30/hour in us-east-1.
 
 **TO-DO**
 
-- Upload modified build directories for all services so you can see how I instrumented uAPM.  Track future changes.
 - Add tracing to Go-based services (catalogue, user, payment) for packages we support for auto-instrument; currently only net/http is instrumented.
 - Send logs to Splunk Cloud instead of CloudWatch; create integration that can be demoed.
 - Update to new versions of the agent and gateway.
