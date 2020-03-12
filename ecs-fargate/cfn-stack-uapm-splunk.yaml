@@ -229,12 +229,12 @@ Resources:
       GroupDescription: 'Splunk external ports'
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: '22'
-          ToPort: '22'
+          FromPort: 22
+          ToPort: 22
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: '8000'
-          ToPort: '8000'
+          FromPort: 8000
+          ToPort: 8000
           CidrIp: 0.0.0.0/0
   SplunkSecurityGroupEcsPorts:
     Type: 'AWS::EC2::SecurityGroupIngress'
@@ -274,9 +274,9 @@ Resources:
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
-            VolumeSize: '50'
+            VolumeSize: 50
       UserData: 
-        Fn::Base64: 
+        Fn::Base64:
           !Sub |
             #!/bin/bash
             mkdir /opt/splunk/etc/apps/splunk_httpinput
@@ -402,7 +402,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           PortMappings:
             - ContainerPort: 8080
           EntryPoint:
@@ -478,7 +478,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           PortMappings:
             - ContainerPort: 27017
           DockerLabels:
@@ -491,7 +491,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
@@ -560,7 +560,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           Environment:
             - Name: SIGNALFX_SERVICE_NAME
               Value: 'carts'
@@ -576,7 +576,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
@@ -657,7 +657,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           Environment:
             - Name: SIGNALFX_SERVICE_NAME
               Value: "catalogue"
@@ -677,7 +677,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
@@ -785,7 +785,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           Environment:
             - Name: SESSION_REDIS
               Value: 'true'
@@ -801,7 +801,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
@@ -871,7 +871,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           PortMappings:
             - ContainerPort: 6379
           DockerLabels:
@@ -884,7 +884,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
@@ -948,7 +948,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           Environment:
             - Name: SIGNALFX_SERVICE_NAME
               Value: "user"
@@ -968,7 +968,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
@@ -1034,7 +1034,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           PortMappings:
             - ContainerPort: 27017
           DockerLabels:
@@ -1047,7 +1047,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
@@ -1111,7 +1111,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           PortMappings:
             - ContainerPort: 27017
           DockerLabels:
@@ -1124,7 +1124,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
@@ -1188,7 +1188,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           Environment:
           - Name: SIGNALFX_SERVICE_NAME
             Value: 'orders'
@@ -1204,7 +1204,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
@@ -1273,7 +1273,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           Environment:
             - Name: SIGNALFX_SERVICE_NAME
               Value: "payment"
@@ -1293,7 +1293,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
@@ -1357,7 +1357,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           Environment:
             - Name: SIGNALFX_SERVICE_NAME
               Value: 'queue-master'
@@ -1376,7 +1376,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
@@ -1444,7 +1444,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           PortMappings:
             - ContainerPort: 5672
             - ContainerPort: 15672
@@ -1458,7 +1458,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
@@ -1522,7 +1522,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           Environment:
             - Name: SIGNALFX_SERVICE_NAME
               Value: 'shipping'
@@ -1538,7 +1538,7 @@ Resources:
               splunk-url: https://172.31.0.212:8088
               splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
               tag: "{{.Name}}"
-              splunk-insecureskipverify: true
+              splunk-insecureskipverify: "true"
           EntryPoint:
             - bash
             - "-c"
