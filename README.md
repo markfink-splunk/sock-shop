@@ -1,4 +1,10 @@
 # sock-shop
+
+**UPDATES**
+We now have a CFN template that spins-up a Splunk Enterprise instance on an EC2 and Fargate tasks send their logs to it (instead of CloudWatch).  Many thanks to Tim Hard for that contribution!
+
+<br/>
+
 This provides everything needed to run the Weaveworks Sock Shop demo app (https://microservices-demo.github.io/) in environments not otherwise provided by Weaveworks, starting with ECS/Fargate.  It is delivered as a CloudFormation stack that provisions all AWS resources necessary to run the app and monitor it with SignalFx instrumentation.  
 
 You will incur a small cost to run the app: about $0.30/hour in us-east-1.
