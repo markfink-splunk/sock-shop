@@ -8,6 +8,8 @@ To use the Splunk template, you must subscribe to Splunk Enterprise on AWS here:
 
 <br/>
 
+**OVERVIEW**
+
 This provides everything needed to run the Weaveworks Sock Shop demo app (https://microservices-demo.github.io/) in environments not otherwise provided by Weaveworks, starting with ECS/Fargate.  It is delivered as a CloudFormation stack that provisions all AWS resources necessary to run the app and monitor it with SignalFx instrumentation.  
 
 You will incur a small cost to run the app: about $0.30/hour in us-east-1.
