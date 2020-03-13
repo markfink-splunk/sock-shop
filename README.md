@@ -1,7 +1,10 @@
 # sock-shop
 
 **UPDATES**
+
 We now have a CFN template that spins-up a Splunk Enterprise instance on an EC2 and Fargate tasks send their logs to it (instead of CloudWatch).  Many thanks to Tim Hard for that contribution!
+
+To use the Splunk template, you must subscribe to Splunk Enterprise on AWS here:  https://aws.amazon.com/marketplace/pp/Splunk-Inc-Splunk-Enterprise/B00PUXWXNE
 
 <br/>
 
