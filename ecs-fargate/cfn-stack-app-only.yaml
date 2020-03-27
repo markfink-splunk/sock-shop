@@ -1,0 +1,1213 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Resources required to run the Weaveworks Sock Shop app on an ECS cluster with
+  Fargate.  This includes the SignalFx Smart Agent for each task.
+Mappings: 
+  VpcCidrs:
+    vpc:
+      cidr: 172.31.0.0/16
+    pubsubnet1:
+      cidr: 172.31.0.0/24
+    pubsubnet2:
+      cidr: 172.31.1.0/24
+  SqlImporterAmiIds:
+    us-east-1:
+      ImageId: ami-0b33d91d
+    us-east-2:
+      ImageId: ami-c55673a0
+    us-west-1:
+      ImageId: ami-f173cc91
+    us-west-2:
+      ImageId: ami-165a0876
+    eu-west-1:
+      ImageId: ami-70edb016
+    eu-central-1:
+      ImageId: ami-af0fc0c0
+    ap-northeast-1:
+      ImageId: ami-56d4ad31
+    ap-southeast-1:
+      ImageId: ami-dc9339bf
+    ap-southeast-2:
+      ImageId: ami-1c47407f
+Parameters:
+  KeyName:
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Description: >-
+      Name of an existing EC2 KeyPair to enable SSH access to the SQLImporter
+      EC2 instance (if none appear in drop-down menu, you need to create one)
+    MinLength: '1'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+Resources:
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Ref 'AWS::StackName'
+  DynamoDbTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+  EcsTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+  Vpc:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !FindInMap 
+        - VpcCidrs
+        - vpc
+        - cidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+  DhcpOptionsLocal:
+    Type: AWS::EC2::DHCPOptions
+    Properties: 
+        DomainName: local
+        DomainNameServers: 
+          - AmazonProvidedDNS
+  VpcDhcpAssoc:
+    Type: AWS::EC2::VPCDHCPOptionsAssociation
+    Properties:
+      VpcId: !Ref Vpc
+      DhcpOptionsId: !Ref DhcpOptionsLocal
+  LocalNamespace:
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+    Properties:
+      Name: local
+      Vpc: !Ref Vpc
+  PubSubnetAz1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !FindInMap 
+        - VpcCidrs
+        - pubsubnet1
+        - cidr
+      AvailabilityZone: !Select 
+        - '0'
+        - !GetAZs 
+          Ref: 'AWS::Region'
+  PubSubnetAz2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !FindInMap 
+        - VpcCidrs
+        - pubsubnet2
+        - cidr
+      AvailabilityZone: !Select 
+        - '1'
+        - !GetAZs 
+          Ref: 'AWS::Region'
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+  AttachGateway:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+  RouteViaIgw:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref Vpc
+  PublicRouteViaIgw:
+    DependsOn: AttachGateway
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteViaIgw
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  PubSubnet1RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PubSubnetAz1
+      RouteTableId: !Ref RouteViaIgw
+  PubSubnet2RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PubSubnetAz2
+      RouteTableId: !Ref RouteViaIgw
+  ElbSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: ELB Allowed Ports
+      VpcId: !Ref Vpc
+  ElbSecurityGroupIngressAppPort:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref ElbSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: 0.0.0.0/0
+  ElbSecurityGroupIngressZipkinPort:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref ElbSecurityGroup
+      IpProtocol: tcp
+      FromPort: 9411
+      ToPort: 9411
+      CidrIp: 0.0.0.0/0
+  EcsSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: ECS Allowed Ports
+      VpcId: !Ref Vpc
+  EcsSecurityGroupIngressSshPort:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref EcsSecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: 0.0.0.0/0
+  EcsSecurityGroupElb:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref EcsSecurityGroup
+      SourceSecurityGroupId: !Ref ElbSecurityGroup
+      IpProtocol: '-1'
+  EcsSecurityGroupBackEnd:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref EcsSecurityGroup
+      SourceSecurityGroupId: !Ref EcsSecurityGroup
+      IpProtocol: '-1'
+  OrdersDynamoDB:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: customerId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+        - AttributeName: customerId
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: orders
+  CatalogueRDS:
+    Type: 'AWS::RDS::DBInstance'
+    DeletionPolicy: Delete
+    Properties:
+      AllocatedStorage: '100'
+      DBInstanceClass: db.t2.medium
+      DBName: socksdb
+      Engine: MySQL
+      MasterUsername: catalogue_user
+      MasterUserPassword: default_password
+      VPCSecurityGroups:
+        - !Ref DBEC2SecurityGroup
+      DBSubnetGroupName: !Ref myDBSubnetGroup
+  SQLImporter:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: !FindInMap 
+        - SqlImporterAmiIds
+        - !Ref 'AWS::Region'
+        - ImageId
+      InstanceType: t2.micro
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref EcsSecurityGroup
+          SubnetId: !Ref PubSubnetAz1
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - ''
+            - - 'RDS Importer - '
+              - !Ref 'AWS::StackName'
+      KeyName: !Ref KeyName
+      UserData: !Base64 
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash -xe
+            - |
+              yum update -y aws-cfn-bootstrap
+            - |
+              # Install the files and packages from the metadata
+            - '/opt/aws/bin/cfn-init -v '
+            - '         --stack '
+            - !Ref 'AWS::StackName'
+            - '         --resource SQLImporter'
+            - '         --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+            - |
+              # Signal the status from cfn-init
+            - '/opt/aws/bin/cfn-signal -e $? '
+            - '         --stack '
+            - !Ref 'AWS::StackName'
+            - '         --resource SQLImporter'
+            - '         --region '
+            - !Ref 'AWS::Region'
+            - |+
+    Metadata:
+      'AWS::CloudFormation::Init':
+        config:
+          packages:
+            yum:
+              mysql: []
+          commands:
+            get:
+              command: >-
+                wget
+                https://raw.githubusercontent.com/microservices-demo/catalogue/master/docker/catalogue-db/data/dump.sql
+            import:
+              command: >-
+                mysql -u catalogue_user --password=default_password -h $SOCKS_DB
+                -f -D socksdb < dump.sql 
+              env:
+                SOCKS_DB: !GetAtt 
+                  - CatalogueRDS
+                  - Endpoint.Address
+  DBEC2SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Open database for access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref EcsSecurityGroup
+      VpcId: !Ref Vpc
+  myDBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: description
+      SubnetIds:
+        - !Ref PubSubnetAz1
+        - !Ref PubSubnetAz2
+  EcsCluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties:
+      ClusterName: Sock-Shop
+  CartsDBTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: mongo
+          Essential: true
+          Name: carts-db
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: carts-db
+          PortMappings:
+            - ContainerPort: 27017
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '512'
+      Cpu: '256'
+  CartsDBDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: carts-db
+      NamespaceId: !Ref LocalNamespace
+  CartsDBService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      ServiceRegistries:
+        - RegistryArn: !GetAtt CartsDBDns.Arn
+      TaskDefinition: !Ref CartsDBTask
+  CartsTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: weaveworksdemos/carts
+          Essential: true
+          Name: carts
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: carts
+          PortMappings:
+            - ContainerPort: 80
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '1024'
+      Cpu: '256'
+  CartsDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: carts
+      NamespaceId: !Ref LocalNamespace
+  CartsService:
+    Type: 'AWS::ECS::Service'
+    DependsOn: CartsDBService
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref CartsTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt CartsDns.Arn
+  CatalogueTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: weaveworksdemos/catalogue
+          Essential: true
+          Name: catalogue
+          Command:
+            - /app
+            - '-port=80'
+            - !Join 
+              - ''
+              - - '-DSN='
+                - 'catalogue_user:default_password@tcp('
+                - !GetAtt 
+                  - CatalogueRDS
+                  - Endpoint.Address
+                - ':'
+                - !GetAtt 
+                  - CatalogueRDS
+                  - Endpoint.Port
+                - )/socksdb
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: catalogue
+          Environment:
+            - Name: ZIPKIN
+              Value: 'http://zipkin:9411/api/v1/spans'
+          PortMappings:
+            - ContainerPort: 80
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '512'
+      Cpu: '256'
+  CatalogueDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: catalogue
+      NamespaceId: !Ref LocalNamespace
+  CatalogueService:
+    Type: 'AWS::ECS::Service'
+    DependsOn: SQLImporter
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref CatalogueTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt CatalogueDns.Arn
+  FrontEndElb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn: AttachGateway
+    Properties:
+      Name: sockshop
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '30'
+      Subnets:
+        - !Ref PubSubnetAz1
+        - !Ref PubSubnetAz2
+      SecurityGroups:
+        - !Ref ElbSecurityGroup
+  FrontEndTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      TargetType: ip
+      Port: 8079
+      Protocol: HTTP
+      VpcId: !Ref Vpc
+  FrontEndListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref FrontEndTargetGroup
+          Type: 'forward'
+      LoadBalancerArn: !Ref FrontEndElb
+      Port: 80
+      Protocol: HTTP
+  FrontEndListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - TargetGroupArn: !Ref FrontEndTargetGroup
+          Type: forward
+      Conditions:
+        - Field: path-pattern
+          Values: ['*']
+      ListenerArn: !Ref FrontEndListener
+      Priority: 1
+  FrontEndTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: weaveworksdemos/front-end
+          Essential: true
+          Name: front-end
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: frontend
+          Environment:
+            - Name: SESSION_REDIS
+              Value: 'true'
+          PortMappings:
+            - ContainerPort: 8079
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '512'
+      Cpu: '256'
+  FrontEndDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: front-end
+      NamespaceId: !Ref LocalNamespace
+  FrontEndService:
+    Type: 'AWS::ECS::Service'
+    DependsOn: FrontEndListenerRule
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: front-end
+          ContainerPort: 8079
+          TargetGroupArn: !Ref FrontEndTargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref FrontEndTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt FrontEndDns.Arn
+  SessionDBTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: 'redis:alpine'
+          Essential: true
+          Name: session-db
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: session-db
+          PortMappings:
+            - ContainerPort: 6379
+          DockerLabels:
+            "agent.signalfx.com.port.6379": "true"
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '512'
+      Cpu: '256'
+  SessionDBDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: session-db
+      NamespaceId: !Ref LocalNamespace
+  SessionDBService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref SessionDBTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt SessionDBDns.Arn
+  UserTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: weaveworksdemos/user
+          Essential: true
+          Name: user
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: user
+          Environment:
+            - Name: ZIPKIN
+              Value: 'http://zipkin:9411/api/v1/spans'
+          PortMappings:
+            - ContainerPort: 80
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '512'
+      Cpu: '256'
+  UserDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: user
+      NamespaceId: !Ref LocalNamespace
+  UserService:
+    Type: 'AWS::ECS::Service'
+    DependsOn: UserDBService
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref UserTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt UserDns.Arn
+  UserDBTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: weaveworksdemos/user-db
+          Essential: true
+          Name: user-db
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: user-db
+          PortMappings:
+            - ContainerPort: 27017
+          DockerLabels:
+            "agent.signalfx.com.port.27017": "true"
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '512'
+      Cpu: '256'
+  UserDBDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: user-db
+      NamespaceId: !Ref LocalNamespace
+  UserDBService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref UserDBTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt UserDBDns.Arn
+  OrdersTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: weaveworksdemos/orders-aws
+          Essential: true
+          Name: orders
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: orders
+          Environment:
+            - Name: AWS_DYNAMODB_ENDPOINT
+              Value: !Join 
+                - ''
+                - - dynamodb.
+                  - !Ref 'AWS::Region'
+                  - .amazonaws.com
+          PortMappings:
+            - ContainerPort: 80
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt DynamoDbTaskRole.Arn
+      Memory: '1024'
+      Cpu: '256'
+  OrdersDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: orders
+      NamespaceId: !Ref LocalNamespace
+  OrdersService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref OrdersTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt OrdersDns.Arn
+  PaymentTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: weaveworksdemos/payment
+          Essential: true
+          Name: payment
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: payment
+          Environment:
+            - Name: ZIPKIN
+              Value: 'http://zipkin:9411/api/v1/spans'
+          PortMappings:
+            - ContainerPort: 80
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '512'
+      Cpu: '256'
+  PaymentDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: payment
+      NamespaceId: !Ref LocalNamespace
+  PaymentService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref PaymentTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt PaymentDns.Arn
+  QueueMasterTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: weaveworksdemos/queue-master
+          Essential: true
+          Name: queue-master
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: queue-master
+          MountPoints:
+            - ContainerPath: /var/run/docker.sock
+              SourceVolume: VarRunDocker_Sock
+          PortMappings:
+            - ContainerPort: 80
+      Volumes:
+        - Host: {}
+          Name: VarRunDocker_Sock
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '1024'
+      Cpu: '256'
+  QueueMasterDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: queue-master
+      NamespaceId: !Ref LocalNamespace
+  QueueMasterService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref QueueMasterTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt QueueMasterDns.Arn
+  RabbitMQTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: 'rabbitmq:3.6.8-management'
+          Essential: true
+          Name: rabbitmq
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: rabbitmq
+          PortMappings:
+            - ContainerPort: 5672
+            - ContainerPort: 15672
+          DockerLabels:
+            "agent.signalfx.com.port.15672": "true"
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '512'
+      Cpu: '256'
+  RabbitMQDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: rabbitmq
+      NamespaceId: !Ref LocalNamespace
+  RabbitMQService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref RabbitMQTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt RabbitMQDns.Arn
+  ShippingTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: weaveworksdemos/shipping
+          Essential: true
+          Name: shipping
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: shipping
+          PortMappings:
+            - ContainerPort: 80
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '1024'
+      Cpu: '256'
+  ShippingDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: shipping
+      NamespaceId: !Ref LocalNamespace
+  ShippingService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref ShippingTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt ShippingDns.Arn
+  ZipkinTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      TargetType: ip
+      Port: 9411
+      Protocol: HTTP
+      HealthCheckPath: /health
+      VpcId: !Ref Vpc
+  ZipkinListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref ZipkinTargetGroup
+          Type: 'forward'
+      LoadBalancerArn: !Ref FrontEndElb
+      Port: 9411
+      Protocol: HTTP
+  ZipkinListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - TargetGroupArn: !Ref ZipkinTargetGroup
+          Type: forward
+      Conditions:
+        - Field: path-pattern
+          Values: ['*']
+      ListenerArn: !Ref ZipkinListener
+      Priority: 1
+  ZipkinTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: openzipkin/zipkin
+          Essential: true
+          Name: zipkin
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: zipkin
+          PortMappings:
+            - ContainerPort: 9411
+          Environment:
+            - Name: STORAGE_TYPE
+              Value: mysql
+            - Name: MYSQL_HOST
+              Value: zipkin-mysql
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '1024'
+      Cpu: '512'
+  ZipkinDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: zipkin
+      NamespaceId: !Ref LocalNamespace
+  ZipkinService:
+    Type: 'AWS::ECS::Service'
+    DependsOn:
+      - ZipkinListenerRule
+      - ZipkinDBService
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: zipkin
+          ContainerPort: 9411
+          TargetGroupArn: !Ref ZipkinTargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref ZipkinTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt ZipkinDns.Arn
+  ZipkinCronTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: openzipkin/zipkin-dependencies
+          Essential: true
+          Name: zipkin-cron
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: zipkin-cron
+          Environment:
+            - Name: STORAGE_TYPE
+              Value: mysql
+            - Name: MYSQL_HOST
+              Value: zipkin-mysql
+            - Name: MYSQL_USER
+              Value: zipkin
+            - Name: MYSQL_PASS
+              Value: zipkin
+          EntryPoint:
+            - crond
+            - '-f'
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '1024'
+      Cpu: '256'
+  ZipkinCronService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref ZipkinCronTask
+    DependsOn: ZipkinDBService
+  ZipkinDBTask:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Image: openzipkin/zipkin-mysql
+          Essential: true
+          Name: zipkin-mysql
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'AWS::StackName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: zipkin-db
+          PortMappings:
+            - ContainerPort: 3306
+      Volumes: []
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
+      Memory: '1024'
+      Cpu: '256'
+  ZipkinDBDns:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 10
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: zipkin-mysql
+      NamespaceId: !Ref LocalNamespace
+  ZipkinDBService:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref EcsCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref EcsSecurityGroup
+          Subnets:
+            - !Ref PubSubnetAz1
+            - !Ref PubSubnetAz2
+      TaskDefinition: !Ref ZipkinDBTask
+      ServiceRegistries:
+        - RegistryArn: !GetAtt ZipkinDBDns.Arn
+Outputs:
+  ApplicationURL:
+    Description: "Application URL"
+    Value: !Join ['', ['http://', !GetAtt [FrontEndElb, DNSName]]]
+  ZipkinURL:
+    Description: "Zipkin URL"
+    Value: !Join ['', ['http://', !GetAtt [FrontEndElb, DNSName], ':9411']]
