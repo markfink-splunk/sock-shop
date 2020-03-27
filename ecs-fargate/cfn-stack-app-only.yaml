@@ -37,15 +37,6 @@ Parameters:
       EC2 instance (if none appear in drop-down menu, you need to create one)
     MinLength: '1'
     ConstraintDescription: must be the name of an existing EC2 KeyPair.
-  Realm:
-    Type: String
-    Description: SignalFx realm to send data to
-    AllowedValues:
-    - us0
-    - us1
-    - us2
-    - eu0
-    - ap0
 Resources:
   LogGroup:
     Type: AWS::Logs::LogGroup
