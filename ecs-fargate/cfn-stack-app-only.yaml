@@ -11,6 +11,7 @@ Mappings:
     pubsubnet2:
       cidr: 172.31.1.0/24
   SqlImporterAmiIds:
+    us-east-1:
       ImageId: ami-0b33d91d
     us-east-2:
       ImageId: ami-c55673a0
