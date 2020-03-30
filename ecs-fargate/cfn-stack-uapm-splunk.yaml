@@ -387,82 +387,6 @@ Resources:
     Type: 'AWS::ECS::Cluster'
     Properties:
       ClusterName: sockshop-fargate
-  SmartGatewayTask:
-    Type: 'AWS::ECS::TaskDefinition'
-    Properties:
-      RequiresCompatibilities:
-        - FARGATE
-      ContainerDefinitions:
-        - Image: marksfink/smart-gateway:2.0.4
-          Essential: true
-          Name: smart-gateway
-          LogConfiguration:
-            LogDriver: splunk
-            Options:
-              splunk-url: https://172.31.0.212:8088
-              splunk-token: 7f290a2b-c2b0-48b5-94e7-ede29475dcea
-              tag: "{{.Name}}"
-              splunk-insecureskipverify: "true"
-          PortMappings:
-            - ContainerPort: 8080
-          EntryPoint:
-            - bash
-            - "-c"
-          Command:
-            - "read -d '.' -a HOST <<< \"$HOSTNAME\" && \
-            export SFX_HOSTNAME=sockshop-smartgateway-$HOST && \
-            curl --fail $AGENTCFG > /var/config/gateway/agent.yaml && \
-            curl --fail $GWCFG > /var/config/gateway/gateway.conf && \
-            ( signalfx-agent -config /var/config/gateway/agent.yaml & ) && \
-            /smart-gateway --configfile /var/config/gateway/gateway.conf"
-          Environment:
-            - Name: SFX_REALM
-              Value: !Ref Realm
-            - Name: AGENTCFG
-              Value: "https://raw.githubusercontent.com/signalfx/sock-shop/master/gateway/agent.yaml"
-            - Name: GWCFG
-              Value: !Join
-                - ""
-                - - "https://raw.githubusercontent.com/signalfx/sock-shop/master/gateway/gateway-"
-                  - !Ref Realm
-                  - ".conf"
-          Secrets:
-            - Name: ACCESS_TOKEN
-              ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sfx_access_token"
-      Volumes: []
-      NetworkMode: awsvpc
-      ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
-      Memory: '1024'
-      Cpu: '256'
-  SmartGatewayDns:
-    Type: AWS::ServiceDiscovery::Service
-    Properties: 
-      DnsConfig:
-        RoutingPolicy: MULTIVALUE
-        DnsRecords:
-          - TTL: 10
-            Type: A
-      HealthCheckCustomConfig: 
-        FailureThreshold: 1
-      Name: smart-gateway
-      NamespaceId: !Ref LocalNamespace
-  SmartGatewayService:
-    Type: 'AWS::ECS::Service'
-    Properties:
-      Cluster: !Ref EcsCluster
-      DesiredCount: 1
-      LaunchType: FARGATE
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
-          SecurityGroups:
-            - !Ref EcsSecurityGroup
-          Subnets:
-            - !Ref PubSubnetAz1
-            - !Ref PubSubnetAz2
-      ServiceRegistries:
-        - RegistryArn: !GetAtt SmartGatewayDns.Arn
-      TaskDefinition: !Ref SmartGatewayTask
   CartsDBTask:
     Type: 'AWS::ECS::TaskDefinition'
     Properties:
@@ -483,7 +407,7 @@ Resources:
             - ContainerPort: 27017
           DockerLabels:
             "agent.signalfx.com.port.27017": "true"
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: carts-db-agent
           LogConfiguration:
             LogDriver: splunk
@@ -524,7 +448,6 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   CartsDBService:
     Type: 'AWS::ECS::Service'
-    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -568,7 +491,7 @@ Resources:
               Value: '-javaagent:signalfx-tracing.jar -Xms32m -Xmx64m'
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: carts-agent
           LogConfiguration:
             LogDriver: splunk
@@ -611,7 +534,6 @@ Resources:
     Type: 'AWS::ECS::Service'
     DependsOn: 
     - CartsDBService
-    - SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -669,7 +591,7 @@ Resources:
               Value: "B3"
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: catalogue-agent
           LogConfiguration:
             LogDriver: splunk
@@ -712,7 +634,6 @@ Resources:
     Type: 'AWS::ECS::Service'
     DependsOn:
     - SQLImporter
-    - SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -793,7 +714,7 @@ Resources:
               Value: 'front-end'
           PortMappings:
             - ContainerPort: 8079
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: front-end-agent
           LogConfiguration:
             LogDriver: splunk
@@ -836,7 +757,6 @@ Resources:
     Type: 'AWS::ECS::Service'
     DependsOn:
     - FrontEndListenerRule
-    - SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -876,7 +796,7 @@ Resources:
             - ContainerPort: 6379
           DockerLabels:
             "agent.signalfx.com.port.6379": "true"
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: session-db-agent
           LogConfiguration:
             LogDriver: splunk
@@ -917,7 +837,6 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   SessionDBService:
     Type: 'AWS::ECS::Service'
-    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -960,7 +879,7 @@ Resources:
               Value: "B3"
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: user-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1003,7 +922,6 @@ Resources:
     Type: 'AWS::ECS::Service'
     DependsOn:
     - UserDBService
-    - SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -1039,7 +957,7 @@ Resources:
             - ContainerPort: 27017
           DockerLabels:
             "agent.signalfx.com.port.27017": "true"
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: user-db-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1080,7 +998,6 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   UserDBService:
     Type: 'AWS::ECS::Service'
-    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -1116,7 +1033,7 @@ Resources:
             - ContainerPort: 27017
           DockerLabels:
             "agent.signalfx.com.port.27017": "true"
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: orders-db-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1157,7 +1074,6 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   OrdersDBService:
     Type: 'AWS::ECS::Service'
-    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -1196,7 +1112,7 @@ Resources:
             Value: '-javaagent:signalfx-tracing.jar -Xms64m -Xmx128m -XX:PermSize=32m -XX:MaxPermSize=64m -XX:+UseG1GC -Djava.security.egd=file:/dev/urandom'
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: orders-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1239,7 +1155,6 @@ Resources:
     Type: 'AWS::ECS::Service'
     DependsOn:
     - OrdersDBService
-    - SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -1285,7 +1200,7 @@ Resources:
               Value: "B3"
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: payment-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1326,7 +1241,6 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   PaymentService:
     Type: 'AWS::ECS::Service'
-    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -1368,7 +1282,7 @@ Resources:
               SourceVolume: VarRunDocker_Sock
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: queue-master-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1413,7 +1327,6 @@ Resources:
     Type: 'AWS::ECS::Service'
     DependsOn:
     - RabbitMQService
-    - SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -1450,7 +1363,7 @@ Resources:
             - ContainerPort: 15672
           DockerLabels:
             "agent.signalfx.com.port.15672": "true"
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: rabbitmq-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1491,7 +1404,6 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   RabbitMQService:
     Type: 'AWS::ECS::Service'
-    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1
@@ -1530,7 +1442,7 @@ Resources:
               Value: '-javaagent:signalfx-tracing.jar -Xms64m -Xmx128m -XX:PermSize=32m -XX:MaxPermSize=64m -XX:+UseG1GC -Djava.security.egd=file:/dev/urandom'
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:4.15.0
+        - Image: quay.io/signalfx/signalfx-agent:5.0.4
           Name: shipping-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1571,7 +1483,6 @@ Resources:
       NamespaceId: !Ref LocalNamespace
   ShippingService:
     Type: 'AWS::ECS::Service'
-    DependsOn: SmartGatewayService
     Properties:
       Cluster: !Ref EcsCluster
       DesiredCount: 1

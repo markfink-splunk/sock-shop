@@ -2,6 +2,9 @@
 
 **UPDATES**
 
+In process of updating the stacks to use APM 2.0.  Switch to the APMv1 branch for the original CFN stacks.  APM 2.0 stacks may not be fully tested/working while this message is here.
+
+
 We now have a CFN template that spins-up a Splunk Enterprise instance on an EC2 and Fargate tasks send their logs to it (instead of CloudWatch).  Many thanks to Tim Hard for that contribution!
 
 To use the Splunk template, you must subscribe to Splunk Enterprise on AWS here:  https://aws.amazon.com/marketplace/pp/Splunk-Inc-Splunk-Enterprise/B00PUXWXNE

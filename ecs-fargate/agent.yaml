@@ -11,9 +11,7 @@ hostname: ${SFX_HOSTNAME}
 # from outside the container using http://<ip>:8095/?section=<keyword>.
 internalStatusHost: "0.0.0.0"
 
-cluster: sockshop-fargate
-
-traceEndpointUrl: http://smart-gateway:8080/v1/trace
+#traceEndpointUrl: https://ingest.YOUR_SIGNALFX_REALM.signalfx.com/v2/trace
 
 logging:
   level: {"#from": "env:LOG_LEVEL", default: "info"}
@@ -53,13 +51,18 @@ monitors:
     discoveryRule: container_image =~ "rabbitmq" && port == 15672
     username: guest
     password: guest
-  - type: trace-forwarder
+  - type: signalfx-forwarder
+    defaultSpanTags:
+      environment: sockshop-fargate
 
     # You can set this envvar in your task definition to provide extra monitor
     # configuration to monitor applications running as ECS tasks.  You should
     # probably use discovery rules so that you don't have to have a specific
     # config for each EC2 instance.
   - {"#from": "env:EXTRA_MONITOR_CONFIG", default: [], flatten: true}
+
+writer:
+  traceExportFormat: sapm
 
 enableBuiltInFiltering: true
 
