@@ -16,6 +16,8 @@ internalStatusHost: "0.0.0.0"
 logging:
   level: {"#from": "env:LOG_LEVEL", default: "info"}
 
+cluster: sockshop-fargate
+
 # observers are what discover running services in the environment
 observers:
     # Enable the ecs observer to discover other ECS containers running on the
