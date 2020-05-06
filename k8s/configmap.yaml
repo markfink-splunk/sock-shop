@@ -1,0 +1,147 @@
+---
+# Source: signalfx-agent/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: signalfx-agent
+  labels:
+    app: signalfx-agent
+data:
+  agent.yaml: |
+    signalFxAccessToken: ${SFX_ACCESS_TOKEN}
+    signalFxRealm: {"#from": "env:SFX_REALM", default: "us0"}
+
+    etcPath: /hostfs/etc
+    procPath: /hostfs/proc
+
+    intervalSeconds: 10
+
+    logging:
+      level: info
+
+    globalDimensions:
+      kubernetes_cluster: my_cluster
+
+    # sendMachineID: false
+
+    observers:
+    - type: k8s-api
+
+    monitors:
+    - type: cpu
+    - type: collectd/cpufreq
+    - type: filesystems
+      hostFSPath: /hostfs
+    - type: disk-io
+    - type: net-io
+    - type: load
+    - type: memory
+    - type: collectd/protocols
+    - type: collectd/signalfx-metadata
+      perCoreCPUUtil: true
+    - type: host-metadata
+    - type: collectd/uptime
+    - type: vmem
+
+    - type: collectd/processes
+      processes:
+      - collectd
+      - signalfx-agent
+
+    - type: kubelet-stats
+      kubeletAPI:
+        authType: serviceAccount
+        url: https://${MY_NODE_NAME}:10250
+        skipVerify: true
+
+    # Collects k8s cluster-level metrics
+    - type: kubernetes-cluster
+      # useNodeName: true
+
+    #    - type: prometheus-exporter
+    #      discoveryRule: container_image =~ "kube-state-metrics"
+    #      disableHostDimensions: true
+    #      disableEndpointDimensions: true
+    #      dimensionTransformations:
+    #        pod: kubernetes_pod_name
+    #        namespace: kubernetes_namespace
+    #        container: container_spec_name
+    #        node: kubernetes_node
+    #      extraDimensions:
+    #        metric_source: kube-state-metrics
+
+    - type: docker-container-stats
+      dockerURL: unix:///var/run/docker.sock
+      excludedImages:
+       - '*pause-amd64*'
+       - 'k8s.gcr.io/pause*'
+      labelsToDimensions:
+        io.kubernetes.container.name: container_spec_name
+        io.kubernetes.pod.name: kubernetes_pod_name
+        io.kubernetes.pod.uid: kubernetes_pod_uid
+        io.kubernetes.pod.namespace: kubernetes_namespace
+
+    - type: kubernetes-apiserver
+      discoveryRule: kubernetes_pod_name =~ "kube-apiserver" && target == "pod"
+      port: 6443
+      useHTTPS: true
+      caCertPath: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      useServiceAccount: true
+      extraDimensions:
+        metric_source: kubernetes-apiserver
+
+    - type: etcd
+      discoveryRule: kubernetes_pod_name =~ "etcd" && target == "pod"
+      port: 2379
+      useHTTPS: true
+      skipVerify: true
+      clientCertPath: /hostfs/etc/kubernetes/pki/etcd/healthcheck-client.crt
+      clientKeyPath: /hostfs/etc/kubernetes/pki/etcd/healthcheck-client.key
+      extraDimensions:
+        metric_source: etcd-minikube
+
+    - type: kubernetes-scheduler
+      discoveryRule: kubernetes_pod_name =~ "kube-scheduler" && target == "pod"
+      port: 10251
+      extraDimensions:
+        metric_source: kubernetes-scheduler
+
+    - type: kubernetes-proxy
+      discoveryRule: kubernetes_pod_name =~ "kube-proxy" && target == "pod"
+      port: 10249
+      extraDimensions:
+        metric_source: kubernetes-proxy
+
+    - type: kube-controller-manager
+      discoveryRule: kubernetes_pod_name =~ "kube-controller-manager" && target == "pod"
+      port: 10252
+      extraDimensions:
+        metric_source: kubernetes-controller-manager
+
+    - type: coredns
+      discoveryRule: kubernetes_pod_name =~ "coredns" && target == "pod"
+      port: 9153
+      extraDimensions:
+        metric_source: k8s-coredns
+
+    - type: signalfx-forwarder
+      defaultSpanTags:
+        environment: sockshop-k8s
+
+    collectd:
+      readThreads: 5
+      writeQueueLimitHigh: 500000
+      writeQueueLimitLow: 400000
+      timeout: 40
+      logLevel: info
+
+    writer:
+      traceExportFormat: sapm
+
+    enableBuiltInFiltering: true
+
+    metricsToExclude:
+      # The StackDriver metadata-agent pod on GKE restarts every few minutes so
+      # ignore its containers
+      - dimensions:
+          container_spec_name: metadata-agent

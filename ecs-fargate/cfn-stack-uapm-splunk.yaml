@@ -407,7 +407,7 @@ Resources:
             - ContainerPort: 27017
           DockerLabels:
             "agent.signalfx.com.port.27017": "true"
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: carts-db-agent
           LogConfiguration:
             LogDriver: splunk
@@ -491,7 +491,7 @@ Resources:
               Value: '-javaagent:signalfx-tracing.jar -Xms32m -Xmx64m'
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: carts-agent
           LogConfiguration:
             LogDriver: splunk
@@ -591,7 +591,7 @@ Resources:
               Value: "B3"
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: catalogue-agent
           LogConfiguration:
             LogDriver: splunk
@@ -714,7 +714,7 @@ Resources:
               Value: 'front-end'
           PortMappings:
             - ContainerPort: 8079
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: front-end-agent
           LogConfiguration:
             LogDriver: splunk
@@ -796,7 +796,7 @@ Resources:
             - ContainerPort: 6379
           DockerLabels:
             "agent.signalfx.com.port.6379": "true"
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: session-db-agent
           LogConfiguration:
             LogDriver: splunk
@@ -879,7 +879,7 @@ Resources:
               Value: "B3"
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: user-agent
           LogConfiguration:
             LogDriver: splunk
@@ -957,7 +957,7 @@ Resources:
             - ContainerPort: 27017
           DockerLabels:
             "agent.signalfx.com.port.27017": "true"
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: user-db-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1033,7 +1033,7 @@ Resources:
             - ContainerPort: 27017
           DockerLabels:
             "agent.signalfx.com.port.27017": "true"
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: orders-db-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1112,7 +1112,7 @@ Resources:
             Value: '-javaagent:signalfx-tracing.jar -Xms64m -Xmx128m -XX:PermSize=32m -XX:MaxPermSize=64m -XX:+UseG1GC -Djava.security.egd=file:/dev/urandom'
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: orders-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1200,7 +1200,7 @@ Resources:
               Value: "B3"
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: payment-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1282,7 +1282,7 @@ Resources:
               SourceVolume: VarRunDocker_Sock
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: queue-master-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1363,7 +1363,7 @@ Resources:
             - ContainerPort: 15672
           DockerLabels:
             "agent.signalfx.com.port.15672": "true"
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: rabbitmq-agent
           LogConfiguration:
             LogDriver: splunk
@@ -1442,7 +1442,7 @@ Resources:
               Value: '-javaagent:signalfx-tracing.jar -Xms64m -Xmx128m -XX:PermSize=32m -XX:MaxPermSize=64m -XX:+UseG1GC -Djava.security.egd=file:/dev/urandom'
           PortMappings:
             - ContainerPort: 80
-        - Image: quay.io/signalfx/signalfx-agent:5.0.4
+        - Image: quay.io/signalfx/signalfx-agent:5.1.4
           Name: shipping-agent
           LogConfiguration:
             LogDriver: splunk
