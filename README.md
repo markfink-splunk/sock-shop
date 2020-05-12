@@ -4,7 +4,7 @@
 
 Folks have reported that the us-west regions do not work, because Weaveworks removed their custom AMI (for one of the services) from those regions.  us-east-1 continues to work.  We may find that Weaveworks has stopped supporting other regions also.  If all else fails, just use us-east-1.
 
-Master branch is now updated for APM 2.0.  APM 1.0 files are still available under the APMv1 branch.
+Master branch is now updated for the April 2020 uAPM update.  APM PG files are still available under the APMv1 branch.
 
 We now have a CFN template that spins-up a Splunk Enterprise instance on an EC2 and Fargate tasks send their logs to it (instead of CloudWatch).  Many thanks to Tim Hard for that contribution!
 
@@ -23,7 +23,6 @@ You will incur a small cost to run the app: about $0.30/hour in us-east-1.
 **TO-DO**
 
 - Add tracing to Go-based services (catalogue, user, payment) for packages we support for auto-instrument; currently only net/http is instrumented.
-- Update to new versions of the agent and gateway.
 - Create deployment for EKS/Fargate.
 - Create Terraform scripts for deployments.
 
