@@ -57,9 +57,17 @@ func main() {
 
 	serviceName := os.Getenv("SIGNALFX_SERVICE_NAME")
 	endpointURL := os.Getenv("SIGNALFX_ENDPOINT_URL")
-	sfxtracer.Start(
+	environment := os.Getenv("SIGNALFX_ENVIRONMENT")
+	if environment != "" {
+		sfxtracer.Start(
+			sfxtracer.WithServiceName(serviceName),
+			sfxtracer.WithZipkin(serviceName, endpointURL, ""),
+			sfxtracer.WithGlobalTag("environment", environment))
+	} else {
+		sfxtracer.Start(
 			sfxtracer.WithServiceName(serviceName),
 			sfxtracer.WithZipkin(serviceName, endpointURL, ""))
+	}
 	defer sfxtracer.Stop()
 	tracer := opentracer.New()
 	opentracing.SetGlobalTracer(tracer)

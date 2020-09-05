@@ -16,9 +16,9 @@ RUN yarn install
 COPY . /usr/src/app
 
 # SIGNALFX UAPM AUTO-INSTRUMENTATION
-COPY signalfx-nodejs-tracing-0.3.0.tar.gz /usr/src/app
-RUN tar xzf signalfx-nodejs-tracing-0.3.0.tar.gz \
-    && npm install ./signalfx-nodejs-tracing-0.3.0
+COPY signalfx-nodejs-tracing-0.8.0.tar.gz /usr/src/app
+RUN tar xzf signalfx-nodejs-tracing-0.8.0.tar.gz \
+    && npm install ./signalfx-nodejs-tracing-0.8.0
 
 # Start the app
 CMD ["/usr/local/bin/npm", "start"]

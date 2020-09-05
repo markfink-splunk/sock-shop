@@ -19,21 +19,20 @@ func init() {
 	flag.StringVar(&domain, "link-domain", os.Getenv("HATEAOS"), "HATEAOS link domain")
 }
 
-type Links map[string]Href
+type Links map[string]map[string]string
 
 func (l *Links) AddLink(ent string, id string) {
 	nl := make(Links)
 	link := fmt.Sprintf("http://%v/%v/%v", domain, entitymap[ent], id)
-	nl[ent] = Href{link}
-	nl["self"] = Href{link}
+	nl[ent] = map[string]string{"href":link}
+	nl["self"] = map[string]string{"href":link}
 	*l = nl
-
 }
 
 func (l *Links) AddAttrLink(attr string, corent string, id string) {
 	link := fmt.Sprintf("http://%v/%v/%v/%v", domain, entitymap[corent], id, entitymap[attr])
 	nl := *l
-	nl[entitymap[attr]] = Href{link}
+	nl[entitymap[attr]] = map[string]string{"href":link}
 	*l = nl
 }
 
@@ -49,8 +48,4 @@ func (l *Links) AddAddress(id string) {
 
 func (l *Links) AddCard(id string) {
 	l.AddLink("card", id)
-}
-
-type Href struct {
-	string `json:"href"`
 }
